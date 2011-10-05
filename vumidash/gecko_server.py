@@ -2,9 +2,12 @@
 
 import json
 
+from twisted.application.service import Service
 from twisted.web.server import Site
 from twisted.web.resource import Resource
 from twisted.web import http
+from twisted.internet import reactor
+from twisted.internet.defer import inlineCallbacks
 
 
 class GeckoboardResourceBase(Resource):
@@ -68,6 +71,18 @@ class GeckoboardHighchartResource(GeckoboardResourceBase):
         return data
 
 
-class GeckoServer(object):
-    def __init__(self, metrics_source):
+class GeckoServer(Service):
+    def __init__(self, metrics_source, port):
+        self.webserver = None
         self.metrics_source = metrics_source
+        self.port = port
+        self.site_factory = Site(None)  # TODO: pass in root resource
+
+    @inlineCallbacks
+    def startService(self):
+        self.webserver = yield reactor.listenTCP(self.port,
+                                                 self.site_factory)
+
+    @inlineCallbacks
+    def stopService(self):
+        yield self.webserver.loseConnection()

@@ -3,7 +3,6 @@ from zope.interface import implements
 from twisted.python import usage
 from twisted.plugin import IPlugin
 from twisted.application.service import IServiceMaker
-from twisted.application import internet
 
 from vumidash.graphite_client import GraphiteClient
 from vumidash.gecko_server import GeckoServer
@@ -29,8 +28,8 @@ class Graphite2GeckoServiceMaker(object):
         graphite_url = options["graphite-url"]
         port = int(options["port"])
         metrics_source = GraphiteClient(graphite_url)
-        gecko_server = GeckoServer(metrics_source)
-        return internet.TCPServer(port, gecko_server)
+        gecko_server = GeckoServer(metrics_source, port)
+        return gecko_server
 
 
 # service maker instance for twistd
