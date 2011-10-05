@@ -1,0 +1,12 @@
+/ve/*
+*.pyc
+*.swp
+/_trial_temp/*
+.DS_Store
+/docs/_build/*
+/build/*
+/dist/*
+*.egg-info
+dropin.cache
+*.pid
+*.log
