@@ -14,8 +14,8 @@ class GeckoboardResourceBase(Resource):
     isLeaf = True
 
     def __init__(self, metrics_source):
-        self.metrics_source = metrics_source
         Resource.__init__(self)
+        self.metrics_source = metrics_source
 
     def render_GET(self, request):
         json_data = self.get_data(request)
@@ -71,12 +71,19 @@ class GeckoboardHighchartResource(GeckoboardResourceBase):
         return data
 
 
+class GeckoboardResource(Resource):
+
+    def __init__(self, metrics_source):
+        Resource.__init__(self)
+        self.putChild('latest', GeckoboardLatestResource(metrics_source))
+        self.putChild('history', GeckoboardHighchartResource(metrics_source))
+
+
 class GeckoServer(Service):
     def __init__(self, metrics_source, port):
         self.webserver = None
-        self.metrics_source = metrics_source
         self.port = port
-        self.site_factory = Site(None)  # TODO: pass in root resource
+        self.site_factory = Site(GeckoboardResource(metrics_source))
 
     @inlineCallbacks
     def startService(self):
@@ -85,4 +92,5 @@ class GeckoServer(Service):
 
     @inlineCallbacks
     def stopService(self):
-        yield self.webserver.loseConnection()
+        if self.webserver is not None:
+            yield self.webserver.loseConnection()
