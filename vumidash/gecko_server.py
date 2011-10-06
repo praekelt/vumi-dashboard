@@ -1,6 +1,7 @@
 """Server for sending metrics to Geckoboard."""
 
 import json
+import copy
 
 from twisted.application.service import Service
 from twisted.web.server import Site
@@ -30,7 +31,7 @@ class GeckoboardResourceBase(Resource):
 class GeckoboardLatestResource(GeckoboardResourceBase):
 
     def get_data(self, request):
-        metric_name = request.path
+        metric_name = request.args['metric'][0]
         latest, prev = self.metrics_source.get_latest(metric_name)
         data = {"item": [
             {"text": "", "value": latest},
@@ -56,18 +57,21 @@ class GeckoboardHighchartResource(GeckoboardResourceBase):
                 'cursor': 'pointer',
                 },
             },
-        'series': [{
-            'type': 'line',
-            'name': '???',
-            'data': [
-                ['Free', 13491],
-                ['Premium', 313],
-                ]
-            }],
+        'series': [],
+        }
+
+    SERIES_BASE = {
+        'type': 'line',
         }
 
     def get_data(self, request):
-        data = self.HIGHCHART_BASE.copy()
+        metrics = request.args['metric']
+        data = copy.deepcopy(self.HIGHCHART_BASE)
+        for metric in metrics:
+            series = copy.deepcopy(self.SERIES_BASE)
+            series['name'] = metric
+            series['data'] = self.metrics_source.get_history(metric)
+            data['series'].append(series)
         return data
 
 
