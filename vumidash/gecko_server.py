@@ -45,12 +45,9 @@ class GeckoboardHighchartResource(GeckoboardResourceBase):
     HIGHCHART_BASE = {
         'chart': {
             'renderTo': 'container',
+            'plotBackgroundColor': None,
+            'backgroundColor': None,
             },
-        'colors': [
-            '#058DC7',
-            '#50B432',
-            '#EF561A',
-            ],
         'credits': {'enabled': False},
         'title': {'text': None},
         'plotOptions': {
