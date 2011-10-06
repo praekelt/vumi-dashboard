@@ -43,7 +43,9 @@ class GeckoboardLatestResource(GeckoboardResourceBase):
 class GeckoboardHighchartResource(GeckoboardResourceBase):
 
     HIGHCHART_BASE = {
-        'chart': {},
+        'chart': {
+            'renderTo': 'container',
+            },
         'colors': [
             '#058DC7',
             '#50B432',
