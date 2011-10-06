@@ -4,11 +4,11 @@ import json
 import copy
 
 from twisted.application.service import Service
-from twisted.web.server import Site
+from twisted.web.server import Site, NOT_DONE_YET
 from twisted.web.resource import Resource
 from twisted.web import http
 from twisted.internet import reactor
-from twisted.internet.defer import inlineCallbacks
+from twisted.internet.defer import inlineCallbacks, returnValue
 
 
 class GeckoboardResourceBase(Resource):
@@ -18,11 +18,17 @@ class GeckoboardResourceBase(Resource):
         Resource.__init__(self)
         self.metrics_source = metrics_source
 
-    def render_GET(self, request):
-        json_data = self.get_data(request)
+    @inlineCallbacks
+    def do_render_GET(self, request):
+        json_data = yield self.get_data(request)
         request.setResponseCode(http.OK)
         request.setHeader("content-type", "application/json")
-        return json.dumps(json_data)
+        request.write(json.dumps(json_data))
+        request.finish()
+
+    def render_GET(self, request):
+        self.do_render_GET(request)
+        return NOT_DONE_YET
 
     def get_data(self, request):
         raise NotImplementedError("Sub-classes should implement get_data")
@@ -30,14 +36,15 @@ class GeckoboardResourceBase(Resource):
 
 class GeckoboardLatestResource(GeckoboardResourceBase):
 
+    @inlineCallbacks
     def get_data(self, request):
         metric_name = request.args['metric'][0]
-        latest, prev = self.metrics_source.get_latest(metric_name)
+        latest, prev = yield self.metrics_source.get_latest(metric_name)
         data = {"item": [
             {"text": "", "value": latest},
             {"text": "", "value": prev},
             ]}
-        return data
+        returnValue(data)
 
 
 class GeckoboardHighchartResource(GeckoboardResourceBase):
@@ -63,15 +70,16 @@ class GeckoboardHighchartResource(GeckoboardResourceBase):
         'type': 'line',
         }
 
+    @inlineCallbacks
     def get_data(self, request):
         metrics = request.args['metric']
         data = copy.deepcopy(self.HIGHCHART_BASE)
         for metric in metrics:
             series = copy.deepcopy(self.SERIES_BASE)
             series['name'] = metric
-            series['data'] = self.metrics_source.get_history(metric)
+            series['data'] = yield self.metrics_source.get_history(metric)
             data['series'].append(series)
-        return data
+        returnValue(data)
 
 
 class GeckoboardResource(Resource):
