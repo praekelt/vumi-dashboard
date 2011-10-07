@@ -42,11 +42,12 @@ def all_datapoints(response):
 
 
 def filter_datapoints(response):
-    return [(v, t) for v, t in all_datapoints(response) if v is not None]
+    return [(t, v) for t, v in all_datapoints(response) if v is not None]
 
 
 def filter_latest(response):
-    return ([(None, None), (None, None)] + filter_datapoints(response))[-2:]
+    points = ([(None, None), (None, None)] + filter_datapoints(response))[-2:]
+    return [v for t, v in points]
 
 
 class GraphiteClient(MetricSource):
