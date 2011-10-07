@@ -88,7 +88,7 @@ class GraphiteClient(MetricSource):
         return self.metric_template % (metric, t_summary, agg_method)
 
     def get_latest(self, metric, summary_size):
-        d = self.make_graphite_request(metric, summary_size * 3, timedelta(0),
+        d = self.make_graphite_request(metric, summary_size * -3, timedelta(0),
                                        summary_size)
         return d.addCallback(filter_latest)
 
