@@ -80,6 +80,7 @@ class GeckoboardHighchartResource(GeckoboardResourceBase):
                 },
             },
         'series': [],
+        'xAxis': 'datetime',
         }
 
     SERIES_BASE = {
