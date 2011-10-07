@@ -91,6 +91,14 @@ class TestGeckoServer(unittest.TestCase):
 
     @inlineCallbacks
     def test_history_with_ymin(self):
+        data = yield self.get_route_json('history?metric=foo')
+        self.assertTrue('min' not in data['yAxis'])
         data = yield self.get_route_json('history?metric=foo&ymin=-3.2')
-        self.assertTrue('title' in data)
         self.assertEqual(-3.2, data['yAxis']['min'])
+
+    @inlineCallbacks
+    def test_history_with_markers(self):
+        data = yield self.get_route_json('history?metric=foo&markers=false')
+        self.assertFalse(data['plotOptions']['line']['marker']['enabled'])
+        data = yield self.get_route_json('history?metric=foo&markers=true')
+        self.assertTrue(data['plotOptions']['line']['marker']['enabled'])

@@ -14,23 +14,32 @@ from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks, returnValue
 
 
-def parse_timedelta(name, args, default):
+def get_value(name, args, default):
     if name not in args:
         return default
-    s = args[name][0]
+    return args[name][0]
+
+
+def parse_timedelta(name, args, default):
+    value = get_value(name, args, default)
     for unit, key in [('d', 'days'), ('min', 'minutes'),
                       ('s', 'seconds')]:
-        if s.endswith(unit):
-            period = int(s[:-len(unit)])
+        if value.endswith(unit):
+            period = int(value[:-len(unit)])
             return timedelta(**{key: period})
-    return timedelta(int(s))
+    return timedelta(int(value))
 
 
 def parse_float(name, args, default):
-    if name not in args:
-        return default
-    s = args[name][0]
-    return float(s)
+    value = get_value(name, args, default)
+    return float(value) if value is not None else None
+
+
+def parse_boolean(name, args, default):
+    value = str(get_value(name, args, default)).lower()
+    if value in ['0', 'false', 'no']:
+        return False
+    return True
 
 
 class GeckoboardResourceBase(Resource):
@@ -61,8 +70,7 @@ class GeckoboardLatestResource(GeckoboardResourceBase):
     @inlineCallbacks
     def get_data(self, request):
         metric_name = request.args['metric'][0]
-        summary_size = parse_timedelta('step', request.args,
-                                       timedelta(minutes=5))
+        summary_size = parse_timedelta('step', request.args, '5min')
         latest, prev = yield self.metrics_source.get_latest(metric_name,
                                                             summary_size)
         data = {"item": [
@@ -86,6 +94,9 @@ class GeckoboardHighchartResource(GeckoboardResourceBase):
             'line': {
                 'allowPointSelect': True,
                 'cursor': 'pointer',
+                'marker': {
+                    'enabled': False,
+                    },
                 },
             },
         'series': [],
@@ -102,16 +113,15 @@ class GeckoboardHighchartResource(GeckoboardResourceBase):
     @inlineCallbacks
     def get_data(self, request):
         metrics = request.args['metric']
-        from_dt = parse_timedelta('from', request.args,
-                                  -timedelta(hours=24))
-        until_dt = parse_timedelta('until', request.args,
-                                   -timedelta(0))
-        step_dt = parse_timedelta('step', request.args,
-                                  timedelta(minutes=5))
+        from_dt = parse_timedelta('from', request.args, '-1d')
+        until_dt = parse_timedelta('until', request.args, '-0s')
+        step_dt = parse_timedelta('step', request.args, '5min')
         y_min = parse_float('ymin', request.args, None)
+        show_markers = parse_boolean('markers', request.args, 'false')
         data = copy.deepcopy(self.HIGHCHART_BASE)
         if y_min is not None:
             data['yAxis']['min'] = y_min
+        data['plotOptions']['line']['marker']['enabled'] = show_markers
         for metric in metrics:
             series = copy.deepcopy(self.SERIES_BASE)
             series['name'] = metric
