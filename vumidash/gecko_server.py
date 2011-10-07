@@ -1,3 +1,5 @@
+# -*- test-case-name: vumidash.tests.test_gecko_server -*-
+
 """Server for sending metrics to Geckoboard."""
 
 import json
@@ -22,6 +24,13 @@ def parse_timedelta(name, args, default):
             period = int(s[:-len(unit)])
             return timedelta(**{key: period})
     return timedelta(int(s))
+
+
+def parse_float(name, args, default):
+    if name not in args:
+        return default
+    s = args[name][0]
+    return float(s)
 
 
 class GeckoboardResourceBase(Resource):
@@ -83,6 +92,7 @@ class GeckoboardHighchartResource(GeckoboardResourceBase):
         'xAxis': {
             'type': 'datetime',
             },
+        'yAxis': {},
         }
 
     SERIES_BASE = {
@@ -98,7 +108,10 @@ class GeckoboardHighchartResource(GeckoboardResourceBase):
                                    -timedelta(0))
         step_dt = parse_timedelta('step', request.args,
                                   timedelta(minutes=5))
+        y_min = parse_float('ymin', request.args, None)
         data = copy.deepcopy(self.HIGHCHART_BASE)
+        if y_min is not None:
+            data['yAxis']['min'] = y_min
         for metric in metrics:
             series = copy.deepcopy(self.SERIES_BASE)
             series['name'] = metric

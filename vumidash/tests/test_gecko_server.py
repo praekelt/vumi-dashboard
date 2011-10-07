@@ -88,3 +88,9 @@ class TestGeckoServer(unittest.TestCase):
                                          '&from=-3s&until=-0s&step=1s')
         self.assertTrue('title' in data)
         self.check_series(data, {'foo': self.testdata['foo'][:3]})
+
+    @inlineCallbacks
+    def test_history_with_ymin(self):
+        data = yield self.get_route_json('history?metric=foo&ymin=-3.2')
+        self.assertTrue('title' in data)
+        self.assertEqual(-3.2, data['yAxis']['min'])
