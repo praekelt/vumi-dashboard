@@ -10,3 +10,4 @@
 dropin.cache
 *.pid
 *.log
+/trialscript
