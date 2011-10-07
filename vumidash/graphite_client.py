@@ -33,7 +33,12 @@ class GraphiteDataReader(Protocol):
 
 
 def all_datapoints(response):
-    return (response or [{'datapoints': []}])[0]['datapoints']
+    if not response:
+        response = [{'datapoints': []}]
+    datapoints = response[0]['datapoints']
+    # Put time first and convert to milliseconds.
+    datapoints = [(t * 1000, v) for v, t in datapoints]
+    return datapoints
 
 
 def filter_datapoints(response):
@@ -47,7 +52,7 @@ def filter_latest(response):
 class GraphiteClient(MetricSource):
     """Read metrics from Graphite."""
 
-    metric_template = 'summarize(%s, "%s")'
+    metric_template = 'summarize(%s, "%s", "%s")'
 
     def __init__(self, url):
         self.url = url
@@ -66,10 +71,20 @@ class GraphiteClient(MetricSource):
 
     def make_graphite_timedelta(self, dt):
         totalseconds = self.total_seconds(dt)
+        if totalseconds == 0:
+            # Having "-0" here is important.
+            return '-0s'
         return '%ds' % totalseconds
 
     def format_metric(self, metric, t_summary):
-        return self.metric_template % (metric, t_summary)
+        agg_method = "avg"
+        if metric.endswith(".max"):
+            agg_method = "max"
+        elif metric.endswith(".min"):
+            agg_method = "min"
+        elif metric.endswith(".count"):
+            agg_method = "sum"
+        return self.metric_template % (metric, t_summary, agg_method)
 
     def get_latest(self, metric, summary_size):
         d = self.make_graphite_request(metric, summary_size * 3, timedelta(0),
