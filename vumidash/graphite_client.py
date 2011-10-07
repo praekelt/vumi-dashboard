@@ -66,6 +66,6 @@ class GraphiteClient(MetricSource):
         d = self.make_graphite_request(metric, '-15min', '-0s')
         return d.addCallback(filter_latest)
 
-    def get_history(self, metric):
-        d = self.make_graphite_request(metric, '-24h', '-0s')
+    def get_history(self, metric, minutes):
+        d = self.make_graphite_request(metric, '-%dmin' % minutes, '-0s')
         return d.addCallback(filter_datapoints)
