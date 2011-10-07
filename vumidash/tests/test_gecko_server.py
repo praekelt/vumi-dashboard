@@ -13,17 +13,19 @@ class DummySource(MetricSource):
     def __init__(self, testdata):
         self.testdata = testdata
 
-    def get_latest(self, metric_name):
+    def get_latest(self, metric_name, summary_size):
         data = self.testdata.get(metric_name)
         if not data:
             raise ValueError("Unknown metric")
         return data[0], data[1] if len(data) > 1 else None
 
-    def get_history(self, metric_name, minutes):
+    def get_history(self, metric_name, start, end, summary_size):
         data = self.testdata.get(metric_name)
         if not data:
             raise ValueError("Unknown metric")
-        return data[:minutes]
+        steps = int(self.total_seconds(end - start) /
+                    float(self.total_seconds(summary_size)))
+        return data[:steps]
 
 
 class TestGeckoServer(unittest.TestCase):
@@ -48,7 +50,7 @@ class TestGeckoServer(unittest.TestCase):
 
     @inlineCallbacks
     def get_route_json(self, route):
-        data = yield getPage(self.url + route)
+        data = yield getPage(self.url + route, timeout=1)
         returnValue(json.loads(data))
 
     def check_series(self, json, series_dict):
@@ -81,7 +83,8 @@ class TestGeckoServer(unittest.TestCase):
             })
 
     @inlineCallbacks
-    def test_history_with_minutes(self):
-        data = yield self.get_route_json('history?metric=foo&minutes=3')
+    def test_history_with_ranges(self):
+        data = yield self.get_route_json('history?metric=foo'
+                                         '&from=-3s&until=-0s&step=1s')
         self.assertTrue('title' in data)
         self.check_series(data, {'foo': self.testdata['foo'][:3]})

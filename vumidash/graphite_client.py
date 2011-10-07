@@ -3,6 +3,7 @@
 import json
 from StringIO import StringIO
 from urllib import quote
+from datetime import timedelta
 
 from twisted.web.client import Agent
 from twisted.internet import reactor
@@ -46,26 +47,35 @@ def filter_latest(response):
 class GraphiteClient(MetricSource):
     """Read metrics from Graphite."""
 
-    metric_template = 'summarize(%s, "5min")'
+    metric_template = 'summarize(%s, "%s")'
 
     def __init__(self, url):
         self.url = url
 
-    def make_graphite_request(self, target, t_from, t_until):
+    def make_graphite_request(self, target, start, end, summary_size):
+        t_from = self.make_graphite_timedelta(start)
+        t_until = self.make_graphite_timedelta(end)
+        t_summary = self.make_graphite_timedelta(summary_size)
         agent = Agent(reactor)
         url = '%s/render?format=json&target=%s&from=%s&until=%s' % (
-            self.url, quote(self.format_metric(target)), t_from, t_until)
+            self.url, quote(self.format_metric(target, t_summary)),
+            t_from, t_until)
         print "URL:", url
         d = agent.request('GET', url)
         return d.addCallback(GraphiteDataReader.get_response)
 
-    def format_metric(self, metric):
-        return self.metric_template % (metric,)
+    def make_graphite_timedelta(self, dt):
+        totalseconds = self.total_seconds(dt)
+        return '%ds' % totalseconds
 
-    def get_latest(self, metric):
-        d = self.make_graphite_request(metric, '-15min', '-0s')
+    def format_metric(self, metric, t_summary):
+        return self.metric_template % (metric, t_summary)
+
+    def get_latest(self, metric, summary_size):
+        d = self.make_graphite_request(metric, summary_size * 3, timedelta(0),
+                                       summary_size)
         return d.addCallback(filter_latest)
 
-    def get_history(self, metric, minutes):
-        d = self.make_graphite_request(metric, '-%dmin' % minutes, '-0s')
+    def get_history(self, metric, start, end, summary_size):
+        d = self.make_graphite_request(metric, start, end, summary_size)
         return d.addCallback(filter_datapoints)
