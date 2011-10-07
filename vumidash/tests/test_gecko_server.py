@@ -1,6 +1,7 @@
 """Test the server of Geckoboard data."""
 
 import json
+import copy
 from twisted.trial import unittest
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.web.client import getPage
@@ -9,24 +10,33 @@ from vumidash.base import MetricSource
 
 
 class DummySource(MetricSource):
-    def get_latest(self, metric_name):
-        if metric_name == 'foo':
-            return 5, 6
-        else:
-            raise ValueError("Unknown metric")
+    def __init__(self, testdata):
+        self.testdata = testdata
 
-    def get_history(self, metric_name):
-        if metric_name == 'foo':
-            return [1, 2, 3, 4, 5]
-        else:
+    def get_latest(self, metric_name):
+        data = self.testdata.get(metric_name)
+        if not data:
             raise ValueError("Unknown metric")
+        return data[0], data[1] if len(data) > 1 else None
+
+    def get_history(self, metric_name, minutes):
+        data = self.testdata.get(metric_name)
+        if not data:
+            raise ValueError("Unknown metric")
+        return data[:minutes]
 
 
 class TestGeckoServer(unittest.TestCase):
 
+    TESTDATA = {
+        'foo': [1, 2, 3, 4, 5],
+        'bar': [6, 7, 8, 9, 10],
+        }
+
     @inlineCallbacks
     def setUp(self):
-        self.metrics_source = DummySource()
+        self.testdata = copy.deepcopy(self.TESTDATA)
+        self.metrics_source = DummySource(self.testdata)
         self.service = GeckoServer(self.metrics_source, 0)
         yield self.service.startService()
         addr = self.service.webserver.getHost()
@@ -41,6 +51,15 @@ class TestGeckoServer(unittest.TestCase):
         data = yield getPage(self.url + route)
         returnValue(json.loads(data))
 
+    def check_series(self, json, series_dict):
+        series_map = dict((series['name'], series)
+                          for series in json['series'])
+        for name, expected_data in series_dict.items():
+            series = series_map[name]
+            self.assertEqual(series['data'], expected_data)
+            self.assertEqual(series['type'], 'line')
+        self.assertEqual(len(series_map), len(series_dict))
+
     @inlineCallbacks
     def test_simple_latest(self):
         data = yield self.get_route_json('latest?metric=foo')
@@ -50,3 +69,19 @@ class TestGeckoServer(unittest.TestCase):
     def test_simple_history(self):
         data = yield self.get_route_json('history?metric=foo')
         self.assertTrue('title' in data)
+        self.check_series(data, {'foo': self.testdata['foo']})
+
+    @inlineCallbacks
+    def test_multiple_history(self):
+        data = yield self.get_route_json('history?metric=foo&metric=bar')
+        self.assertTrue('title' in data)
+        self.check_series(data, {
+            'foo': self.testdata['foo'],
+            'bar': self.testdata['bar'],
+            })
+
+    @inlineCallbacks
+    def test_history_with_minutes(self):
+        data = yield self.get_route_json('history?metric=foo&minutes=3')
+        self.assertTrue('title' in data)
+        self.check_series(data, {'foo': self.testdata['foo'][:3]})

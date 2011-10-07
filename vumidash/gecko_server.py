@@ -73,11 +73,16 @@ class GeckoboardHighchartResource(GeckoboardResourceBase):
     @inlineCallbacks
     def get_data(self, request):
         metrics = request.args['metric']
+        if 'minutes' in request.args:
+            minutes = int(request.args['minutes'][0])
+        else:
+            minutes = 60  # default to 1hr
         data = copy.deepcopy(self.HIGHCHART_BASE)
         for metric in metrics:
             series = copy.deepcopy(self.SERIES_BASE)
             series['name'] = metric
-            series['data'] = yield self.metrics_source.get_history(metric)
+            series['data'] = yield self.metrics_source.get_history(metric,
+                                                                   minutes)
             data['series'].append(series)
         returnValue(data)
 

@@ -10,7 +10,6 @@ class DummyClient(MetricSource):
     def __init__(self):
         self.latest = None
         self.metric_prefix = "test"
-        self.max_values = 20
         self.prev_values = {}  # map of metrics to previous values
 
     def new_value(self, metric):
@@ -24,10 +23,10 @@ class DummyClient(MetricSource):
         values = self.new_value(metric)
         return values[0], values[1] if len(values) > 1 else None
 
-    def get_history(self, metric):
+    def get_history(self, metric, minutes):
         if not metric.startswith(self.metric_prefix):
             raise UnknownMetricError("Uknown metric %r" % (metric,))
         values = self.new_value(metric)
-        while len(values) < self.max_values:
+        while len(values) < minutes:
             values = self.new_value(metric)
-        return values[:self.max_values]
+        return values[:minutes]
