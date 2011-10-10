@@ -74,6 +74,12 @@ class TestGeckoServer(unittest.TestCase):
         self.assertTrue('item' in data)
 
     @inlineCallbacks
+    def test_multiple_latest(self):
+        data = yield self.get_route_json('latest?metric=foo&metric=bar')
+        self.assertEqual({'item': [{'text': '', 'value': 7},
+                                   {'text': '', 'value': 9}]}, data)
+
+    @inlineCallbacks
     def test_simple_history(self):
         data = yield self.get_route_json('history?metric=foo')
         self.assertTrue('title' in data)

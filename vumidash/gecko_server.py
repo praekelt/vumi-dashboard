@@ -67,12 +67,20 @@ class GeckoboardResourceBase(Resource):
 
 class GeckoboardLatestResource(GeckoboardResourceBase):
 
+    def aggregate_results(self, results):
+        latest, prev = zip(*results)
+        return (sum(latest), sum(prev))
+
     @inlineCallbacks
     def get_data(self, request):
-        metric_name = request.args['metric'][0]
+        metrics = request.args['metric']
         summary_size = parse_timedelta('step', request.args, '5min')
-        latest, prev = yield self.metrics_source.get_latest(metric_name,
-                                                            summary_size)
+        results = []
+        for metric in metrics:
+            m_results = yield self.metrics_source.get_latest(metric,
+                                                             summary_size)
+            results.append(m_results)
+        latest, prev = self.aggregate_results(results)
         data = {"item": [
             {"text": "", "value": latest},
             {"text": "", "value": prev},
