@@ -124,9 +124,10 @@ class GeckoboardHighchartResource(GeckoboardResourceBase):
         y_min = parse_float('ymin', request.args, None)
         show_markers = parse_boolean('markers', request.args, 'false')
         skip_nulls = parse_boolean('skip_nulls', request.args, 'true')
+        ylabel = get_value('ylabel', request.args, None)
         data = copy.deepcopy(self.HIGHCHART_BASE)
-        if y_min is not None:
-            data['yAxis']['min'] = y_min
+        data['yAxis']['min'] = y_min
+        data['yAxis']['title'] = {'text': ylabel}
         data['plotOptions']['line']['marker']['enabled'] = show_markers
         for label, metric in zip(labels, metrics):
             series = copy.deepcopy(self.SERIES_BASE)
