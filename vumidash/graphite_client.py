@@ -45,6 +45,11 @@ def filter_datapoints(response):
     return [(t, v) for t, v in all_datapoints(response) if v is not None]
 
 
+def filter_nulls_as_zeroes(response):
+    return [(t, v) if v is not None else (t, 0.0)
+            for t, v in all_datapoints(response)]
+
+
 def filter_latest(response):
     points = ([(None, None), (None, None)] + filter_datapoints(response))[-2:]
     return [v for t, v in points]
@@ -92,6 +97,8 @@ class GraphiteClient(MetricSource):
                                        summary_size)
         return d.addCallback(filter_latest)
 
-    def get_history(self, metric, start, end, summary_size):
+    def get_history(self, metric, start, end, summary_size, skip_nulls=True):
         d = self.make_graphite_request(metric, start, end, summary_size)
-        return d.addCallback(filter_datapoints)
+        point_filter = (filter_datapoints if skip_nulls
+                        else filter_nulls_as_zeroes)
+        return d.addCallback(point_filter)

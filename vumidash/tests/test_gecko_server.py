@@ -19,13 +19,18 @@ class DummySource(MetricSource):
             raise ValueError("Unknown metric")
         return data[0], data[1] if len(data) > 1 else None
 
-    def get_history(self, metric_name, start, end, summary_size):
+    def get_history(self, metric_name, start, end, summary_size,
+                    skip_nulls=True):
         data = self.testdata.get(metric_name)
         if not data:
             raise ValueError("Unknown metric")
         steps = int(self.total_seconds(end - start) /
                     float(self.total_seconds(summary_size)))
-        return data[:steps]
+        values = data[:steps]
+        if skip_nulls:
+            return [v for v in values if v is not None]
+        else:
+            return [v if v is not None else 0.0 for v in values]
 
 
 class TestGeckoServer(unittest.TestCase):
@@ -33,6 +38,7 @@ class TestGeckoServer(unittest.TestCase):
     TESTDATA = {
         'foo': [1, 2, 3, 4, 5],
         'bar': [6, 7, 8, 9, 10],
+        'zeroes': [1, 2, None, 3, 4, None, 5],
         }
 
     @inlineCallbacks
@@ -116,3 +122,15 @@ class TestGeckoServer(unittest.TestCase):
             'foolabel': self.testdata['foo'],
             'barlabel': self.testdata['bar'],
             })
+
+    @inlineCallbacks
+    def test_skip_nulls(self):
+        data = yield self.get_route_json('history?metric=zeroes')
+        without_nulls = [v for v in self.testdata['zeroes'] if v is not None]
+        self.check_series(data, {'zeroes': without_nulls})
+
+        data = yield self.get_route_json('history?metric=zeroes'
+                                         '&skip_nulls=false')
+        with_nulls_as_zeroes = [v if v is not None else 0.0
+                                for v in self.testdata['zeroes']]
+        self.check_series(data, {'zeroes': with_nulls_as_zeroes})

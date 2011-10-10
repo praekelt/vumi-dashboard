@@ -123,6 +123,7 @@ class GeckoboardHighchartResource(GeckoboardResourceBase):
         step_dt = parse_timedelta('step', request.args, '5min')
         y_min = parse_float('ymin', request.args, None)
         show_markers = parse_boolean('markers', request.args, 'false')
+        skip_nulls = parse_boolean('skip_nulls', request.args, 'true')
         data = copy.deepcopy(self.HIGHCHART_BASE)
         if y_min is not None:
             data['yAxis']['min'] = y_min
@@ -131,7 +132,8 @@ class GeckoboardHighchartResource(GeckoboardResourceBase):
             series = copy.deepcopy(self.SERIES_BASE)
             series['name'] = label
             series['data'] = yield self.metrics_source.get_history(
-                                        metric, from_dt, until_dt, step_dt)
+                                        metric, from_dt, until_dt, step_dt,
+                                        skip_nulls)
             data['series'].append(series)
         returnValue(data)
 
