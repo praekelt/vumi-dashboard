@@ -102,3 +102,17 @@ class TestGeckoServer(unittest.TestCase):
         self.assertFalse(data['plotOptions']['line']['marker']['enabled'])
         data = yield self.get_route_json('history?metric=foo&markers=true')
         self.assertTrue(data['plotOptions']['line']['marker']['enabled'])
+
+    @inlineCallbacks
+    def test_history_with_labels(self):
+        data = yield self.get_route_json('history?metric=foo&label=bar')
+        self.check_series(data, {'bar': self.testdata['foo']})
+
+    @inlineCallbacks
+    def test_history_with_multiple_labels(self):
+        data = yield self.get_route_json('history?metric=foo&label=foolabel'
+                                         '&metric=bar&label=barlabel')
+        self.check_series(data, {
+            'foolabel': self.testdata['foo'],
+            'barlabel': self.testdata['bar'],
+            })

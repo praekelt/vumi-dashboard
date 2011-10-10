@@ -113,6 +113,11 @@ class GeckoboardHighchartResource(GeckoboardResourceBase):
     @inlineCallbacks
     def get_data(self, request):
         metrics = request.args['metric']
+        if 'label' in request.args:
+            labels = request.args['label']
+            assert len(labels) == len(metrics)
+        else:
+            labels = metrics
         from_dt = parse_timedelta('from', request.args, '-1d')
         until_dt = parse_timedelta('until', request.args, '-0s')
         step_dt = parse_timedelta('step', request.args, '5min')
@@ -122,9 +127,9 @@ class GeckoboardHighchartResource(GeckoboardResourceBase):
         if y_min is not None:
             data['yAxis']['min'] = y_min
         data['plotOptions']['line']['marker']['enabled'] = show_markers
-        for metric in metrics:
+        for label, metric in zip(labels, metrics):
             series = copy.deepcopy(self.SERIES_BASE)
-            series['name'] = metric
+            series['name'] = label
             series['data'] = yield self.metrics_source.get_history(
                                         metric, from_dt, until_dt, step_dt)
             data['series'].append(series)
