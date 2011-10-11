@@ -50,9 +50,8 @@ def filter_nulls_as_zeroes(response):
             for t, v in all_datapoints(response)]
 
 
-def filter_latest(response):
-    points = ([(None, None), (None, None)] + filter_datapoints(response))[-2:]
-    return [v for t, v in points]
+def filter_latest(series):
+    return series[0][1], series[-1][1]
 
 
 class GraphiteClient(MetricSource):
@@ -92,9 +91,8 @@ class GraphiteClient(MetricSource):
             agg_method = "sum"
         return self.metric_template % (metric, t_summary, agg_method)
 
-    def get_latest(self, metric, summary_size):
-        d = self.make_graphite_request(metric, summary_size * -3, timedelta(0),
-                                       summary_size)
+    def get_latest(self, metric, start, end, summary_size, skip_nulls=True):
+        d = self.get_history(metric, start, end, summary_size, skip_nulls)
         return d.addCallback(filter_latest)
 
     def get_history(self, metric, start, end, summary_size, skip_nulls=True):

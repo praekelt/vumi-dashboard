@@ -74,11 +74,13 @@ class GeckoboardLatestResource(GeckoboardResourceBase):
     @inlineCallbacks
     def get_data(self, request):
         metrics = request.args['metric']
-        summary_size = parse_timedelta('step', request.args, '5min')
+        step_dt = parse_timedelta('step', request.args, '5min')
+        from_dt = parse_timedelta('from', request.args, '-1d')
+        until_dt = parse_timedelta('until', request.args, '-0s')
         results = []
         for metric in metrics:
-            m_results = yield self.metrics_source.get_latest(metric,
-                                                             summary_size)
+            m_results = yield self.metrics_source.get_latest(
+                metric, from_dt, until_dt, step_dt)
             results.append(m_results)
         prev, latest = self.aggregate_results(results)
         data = {"item": [

@@ -13,11 +13,9 @@ class DummySource(MetricSource):
     def __init__(self, testdata):
         self.testdata = testdata
 
-    def get_latest(self, metric_name, summary_size):
-        data = self.testdata.get(metric_name)
-        if not data:
-            raise ValueError("Unknown metric")
-        return data[0], data[1] if len(data) > 1 else None
+    def get_latest(self, metric_name, start, end, summary_size):
+        values = self.get_history(metric_name, start, end, summary_size)
+        return values[0], values[-1]
 
     def get_history(self, metric_name, start, end, summary_size,
                     skip_nulls=True):
@@ -76,8 +74,8 @@ class TestGeckoServer(unittest.TestCase):
     @inlineCallbacks
     def test_multiple_latest(self):
         data = yield self.get_route_json('latest?metric=foo&metric=bar')
-        self.assertEqual({'item': [{'text': '', 'value': 7},
-                                   {'text': '', 'value': 9}]}, data)
+        self.assertEqual({'item': [{'text': '', 'value': 15},
+                                   {'text': '', 'value': 7}]}, data)
 
     @inlineCallbacks
     def test_simple_history(self):
