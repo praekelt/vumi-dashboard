@@ -83,12 +83,9 @@ class GraphiteClient(MetricSource):
 
     def format_metric(self, metric, t_summary):
         agg_method = "avg"
-        if metric.endswith(".max"):
-            agg_method = "max"
-        elif metric.endswith(".min"):
-            agg_method = "min"
-        elif metric.endswith(".sum"):
-            agg_method = "sum"
+        last_bit = metric.split('.')[-1]
+        if last_bit in ('max', 'min', 'sum'):
+            agg_method = last_bit
         return self.metric_template % (metric, t_summary, agg_method)
 
     def get_latest(self, metric, start, end, summary_size, skip_nulls=True):
