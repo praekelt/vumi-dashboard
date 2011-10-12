@@ -87,7 +87,7 @@ class GraphiteClient(MetricSource):
             agg_method = "max"
         elif metric.endswith(".min"):
             agg_method = "min"
-        elif metric.endswith(".count"):
+        elif metric.endswith(".sum"):
             agg_method = "sum"
         return self.metric_template % (metric, t_summary, agg_method)
 
