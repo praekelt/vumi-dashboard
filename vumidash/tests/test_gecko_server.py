@@ -143,3 +143,32 @@ class TestGeckoServer(unittest.TestCase):
         with_nulls_as_zeroes = [v if v is not None else 0.0
                                 for v in self.testdata['zeroes']]
         self.check_series(data, {'zeroes': with_nulls_as_zeroes})
+
+    @inlineCallbacks
+    def test_rag_simple(self):
+        data = yield self.get_route_json('rag?r_metric=foo&a_metric=bar'
+                                         '&g_metric=zeroes')
+        for item, (value, text) in zip(data['item'], [
+            (5, "Red"), (10, "Amber"), (5, "Green")]):
+            self.assertEqual(item, {"value": value, "text": text})
+
+    @inlineCallbacks
+    def test_rag_text(self):
+        data = yield self.get_route_json('rag?r_metric=foo&r_text=foo1'
+                                         '&a_metric=bar&a_text=bar2'
+                                         '&g_metric=zeroes&g_text=zeroes3')
+        for item, (value, text) in zip(data['item'], [
+            (5, "foo1"), (10, "bar2"), (5, "zeroes3")]):
+            self.assertEqual(item, {"value": value, "text": text})
+
+    @inlineCallbacks
+    def test_rag_prefix(self):
+        data = yield self.get_route_json('rag?r_metric=foo&r_prefix=%24'
+                                         '&a_metric=bar&a_prefix=%26euro%3B'
+                                         '&g_metric=zeroes'
+                                         '&g_prefix=%26pound%3B')
+        for item, (value, text, prefix) in zip(data['item'], [
+            (5, "Red", "$"), (10, "Amber", "&euro;"),
+            (5, "Green", "&pound;")]):
+            self.assertEqual(item, {
+                "value": value, "text": text, "prefix": prefix})

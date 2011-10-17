@@ -90,6 +90,36 @@ class GeckoboardLatestResource(GeckoboardResourceBase):
         returnValue(data)
 
 
+class GeckoboardRagResource(GeckoboardResourceBase):
+
+    RAG_NAMES = {"r": "Red", "a": "Amber", "g": "Green"}
+
+    @inlineCallbacks
+    def get_data(self, request):
+        step_dt = parse_timedelta('step', request.args, '5min')
+        from_dt = parse_timedelta('from', request.args, '-1d')
+        until_dt = parse_timedelta('until', request.args, '-0s')
+
+        items = []
+        for arg_prefix in ["r", "a", "g"]:
+            metric = get_value("%s_metric" % arg_prefix, request.args, None)
+            prefix = get_value("%s_prefix" % arg_prefix, request.args, None)
+            text = get_value("%s_text" % arg_prefix, request.args,
+                             self.RAG_NAMES[arg_prefix])
+            if metric is None:
+                raise ValueError("Missing required parameter %s_metric"
+                                 % arg_prefix)
+            _prev, latest = yield self.metrics_source.get_latest(
+                    metric, from_dt, until_dt, step_dt)
+            item = {"text": text, "value": latest}
+            if prefix is not None:
+                item["prefix"] = prefix
+            items.append(item)
+
+        data = {"item": items}
+        returnValue(data)
+
+
 class GeckoboardHighchartResource(GeckoboardResourceBase):
 
     HIGHCHART_BASE = {
@@ -154,6 +184,7 @@ class GeckoboardResource(Resource):
     def __init__(self, metrics_source):
         Resource.__init__(self)
         self.putChild('latest', GeckoboardLatestResource(metrics_source))
+        self.putChild('rag', GeckoboardRagResource(metrics_source))
         self.putChild('history', GeckoboardHighchartResource(metrics_source))
 
 
