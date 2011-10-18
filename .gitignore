@@ -11,3 +11,7 @@ dropin.cache
 *.pid
 *.log
 /trialscript
+.coverage
+coverage.xml
+pep8.txt
+test_results.xml
