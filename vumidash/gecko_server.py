@@ -139,6 +139,9 @@ class GeckoboardHighchartResource(GeckoboardResourceBase):
                     },
                 },
             },
+        'tooltip': {
+            'snap': 5,
+            },
         'series': [],
         'xAxis': {
             'type': 'datetime',
