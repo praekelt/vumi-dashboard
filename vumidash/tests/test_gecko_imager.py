@@ -52,8 +52,14 @@ class TestDashboardCache(unittest.TestCase):
         png = yield d
         self.assertEqual(png, "A dummy PNG.")
 
+    @inlineCallbacks
     def test_refresh_images(self):
-        pass
+        self.cache.stop()
+        self.cache.pngs.clear()
+        yield self.cache._refresh_images()
+        self.assertEqual(self.cache.pngs, {
+            "dash1": "A dummy PNG.",
+            })
 
     def test_get_png(self):
         pass
