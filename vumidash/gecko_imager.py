@@ -19,6 +19,7 @@ from twisted.web.resource import Resource
 from twisted.internet import reactor, threads
 from twisted.internet.defer import Deferred, inlineCallbacks
 from twisted.internet.task import LoopingCall
+from twisted.python import log
 
 
 class DashboardImager(object):
@@ -76,7 +77,9 @@ class DashboardCache(object):
     @inlineCallbacks
     def _refresh_images(self):
         for name, imager in self.dashboards.items():
-            png = yield threads.deferToThread(imager.generate_png)
+            d = threads.deferToThread(imager.generate_png)
+            d.addErrback(lambda failure: log.err(failure))
+            png = yield d
             if png is not None:
                 self.pngs[name] = png
 
@@ -92,8 +95,10 @@ class DashboardCache(object):
 
 
 class DashboardResource(Resource):
+    isLeaf = True
 
     def __init__(self, dashboard_cache):
+        Resource.__init__(self)
         self.dashboard_cache = dashboard_cache
 
     def render_GET(self, request):
@@ -135,6 +140,7 @@ class GeckoImageServer(Service):
         so 30s * number of dashboards is a sensible minimum.
     """
 
+    # TODO: add web path
     def __init__(self, port, selenium_remote, dashboards, update_interval):
         self.webserver = None
         self.port = port
