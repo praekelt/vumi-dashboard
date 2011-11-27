@@ -65,6 +65,7 @@ class TestDashboardCache(unittest.TestCase):
         png = self.cache.get_png("dash1")
         self.assertEqual(png, None)
 
+    @inlineCallbacks
     def test_start_and_stop(self):
         self.cache.start()
         self.assertTrue(self.cache.update_task.running)
@@ -73,7 +74,7 @@ class TestDashboardCache(unittest.TestCase):
         self.assertEqual(self.cache.update_task.interval,
                          5)
 
-        self.cache.stop()
+        yield self.cache.stop()
         self.assertFalse(self.cache.update_task.running)
 
     @inlineCallbacks
@@ -93,6 +94,15 @@ class TestDashboardCache(unittest.TestCase):
             "dash2": "A dummy PNG.",
             })
 
+    @inlineCallbacks
+    def test_clear_cache(self):
+        yield self.cache._refresh_images()
+        self.cache.clear()
+        self.assertEqual(self.cache.pngs, {
+            "dash1": None,
+            "dash2": None,
+            })
+
 
 class TestGeckoImageServer(unittest.TestCase):
 
@@ -105,6 +115,9 @@ class TestGeckoImageServer(unittest.TestCase):
         self.service = GeckoImageServer(0, "http://example.com/selenium",
                                         dashboards, 30)
         yield self.service.startService()
+        # stop dashboard cache to give explicit control during tests
+        yield self.service.dashboard_cache.stop()
+        self.service.dashboard_cache.clear()
         addr = self.service.webserver.getHost()
         self.url = "http://%s:%s/" % (addr.host, addr.port)
 
@@ -123,6 +136,13 @@ class TestGeckoImageServer(unittest.TestCase):
     def test_dashboard(self):
         # TODO:
         pass
+
+    @inlineCallbacks
+    def test_uncached_dashboard(self):
+        errors = []
+        yield self.get_route("dashboard/dash1", errback=errors.append)
+        [error] = errors
+        self.assertEqual(error.getErrorMessage(), "503 Dashboard not loaded.")
 
     @inlineCallbacks
     def test_unknown_dashboard(self):

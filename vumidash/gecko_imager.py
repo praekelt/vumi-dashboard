@@ -17,7 +17,7 @@ from twisted.web import http
 from twisted.web.server import Site
 from twisted.web.resource import Resource
 from twisted.internet import reactor, threads
-from twisted.internet.defer import Deferred, inlineCallbacks
+from twisted.internet.defer import inlineCallbacks
 from twisted.internet.task import LoopingCall
 from twisted.python import log
 
@@ -73,6 +73,7 @@ class DashboardCache(object):
             self.dashboards[name] = DashboardImager(remote, url)
             self.pngs[name] = None
         self.update_task = LoopingCall(self._refresh_images)
+        self.update_task_done = None
 
     @inlineCallbacks
     def _refresh_images(self):
@@ -83,15 +84,20 @@ class DashboardCache(object):
             if png is not None:
                 self.pngs[name] = png
 
+    def clear(self):
+        for name in self.dashboards:
+            self.pngs[name] = None
+
     def get_png(self, name):
         return self.pngs.get(name)
 
     def start(self):
-        self.update_task.start(self.update_interval)
+        self.update_task_done = self.update_task.start(self.update_interval)
 
     def stop(self):
         if self.update_task.running:
             self.update_task.stop()
+            return self.update_task_done
 
 
 class DashboardResource(Resource):
@@ -102,12 +108,18 @@ class DashboardResource(Resource):
         self.dashboard_cache = dashboard_cache
 
     def render_GET(self, request):
-        dashboard = str(request.path)  # TODO: str or unicode?
-        png = self.dashboard_cache.get_png(dashboard)
-        if png is None:
+        _path, _sep, dashboard = request.path.rpartition("/")
+        if dashboard not in self.dashboard_cache.pngs:
             request.setResponseCode(http.NOT_FOUND, "Dashboard not found.")
             request.setHeader("Content-Type", "text/plain")
             return "Dashboard %r not found" % (dashboard,)
+        png = self.dashboard_cache.get_png(dashboard)
+        if png is None:
+            request.setResponseCode(http.SERVICE_UNAVAILABLE, "Dashboard not"
+                                    " loaded.")
+            request.setHeader("Content-Type", "text/plain")
+            return ("Dashboard %r not loaded. Please try again shortly."
+                    % (dashboard,))
         request.setResponseCode(http.OK)
         request.setHeader("Content-Type", "image/png")
         return png
@@ -156,6 +168,6 @@ class GeckoImageServer(Service):
 
     @inlineCallbacks
     def stopService(self):
-        self.dashboard_cache.stop()
+        yield self.dashboard_cache.stop()
         if self.webserver is not None:
             yield self.webserver.loseConnection()
