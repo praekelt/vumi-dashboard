@@ -3,7 +3,8 @@
 import os
 
 from twisted.trial import unittest
-from twisted.internet.defer import Deferred, inlineCallbacks
+from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.web.client import getPage
 from vumidash import gecko_imager
 from vumidash.gecko_imager import (DashboardImager, DashboardCache,
                                    GeckoImageServer)
@@ -98,7 +99,9 @@ class TestGeckoImageServer(unittest.TestCase):
     @inlineCallbacks
     def setUp(self):
         self.patch(gecko_imager, 'DashboardImager', DummyImager)
-        dashboards = {}
+        dashboards = {
+            "dash1": "http://example.com/dash1",
+            }
         self.service = GeckoImageServer(0, "http://example.com/selenium",
                                         dashboards, 30)
         yield self.service.startService()
@@ -109,5 +112,25 @@ class TestGeckoImageServer(unittest.TestCase):
     def tearDown(self):
         yield self.service.stopService()
 
-    def test_something(self):
+    @inlineCallbacks
+    def get_route(self, route, errback=None):
+        d = getPage(self.url + route, timeout=1)
+        if errback:
+            d.addErrback(errback)
+        data = yield d
+        returnValue(data)
+
+    def test_dashboard(self):
+        # TODO:
+        pass
+
+    @inlineCallbacks
+    def test_uknown_dashboard(self):
+        errors = []
+        yield self.get_route("dashboard/unknown1", errback=errors.append)
+        [error] = errors
+        self.assertEqual(error.getErrorMessage(), "404 Dashboard not found.")
+
+    def test_dashboard_list(self):
+        # TODO:
         pass
