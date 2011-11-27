@@ -1,0 +1,6 @@
+web_path: vumidash
+port: 8100
+selenium_remote: "http://localhost:4444/wd/hub"
+update_interval: 60
+dashboards:
+  ops: "http://example.geckoboard.com/dashboard/UUID-GOES-HERE/"
