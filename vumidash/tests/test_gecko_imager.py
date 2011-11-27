@@ -125,7 +125,7 @@ class TestGeckoImageServer(unittest.TestCase):
         pass
 
     @inlineCallbacks
-    def test_uknown_dashboard(self):
+    def test_unknown_dashboard(self):
         errors = []
         yield self.get_route("dashboard/unknown1", errback=errors.append)
         [error] = errors
