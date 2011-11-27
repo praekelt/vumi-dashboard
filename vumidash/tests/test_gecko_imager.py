@@ -3,9 +3,10 @@
 import os
 
 from twisted.trial import unittest
-from twisted.internet.defer import inlineCallbacks
+from twisted.internet.defer import Deferred, inlineCallbacks
 from vumidash import gecko_imager
-from vumidash.gecko_imager import DashboardImager, GeckoImageServer
+from vumidash.gecko_imager import (DashboardImager, DashboardCache,
+                                   GeckoImageServer)
 
 
 class TestDashboardImager(unittest.TestCase):
@@ -15,6 +16,7 @@ class TestDashboardImager(unittest.TestCase):
         if remote is None:
             raise unittest.SkipTest("Define VUMIDASH_SELENIUM_REMOTE"
                                     " to run DashboardImager tests.")
+        # TODO: implement proper test HTTP service
         url = "http://foo/"
         self.imager = DashboardImager(remote, url)
 
@@ -34,12 +36,21 @@ class TestDashboardCache(unittest.TestCase):
 
     def setUp(self):
         self.patch(gecko_imager, 'DashboardImager', DummyImager)
+        self.cache = DashboardCache("http://example.com/selenium", {
+            "dash1": "http://example.com/dash1",
+            }, 5)
+        self.cache.start()
 
     def tearDown(self):
-        pass
+        self.cache.stop()
 
+    @inlineCallbacks
     def test_generate_image(self):
-        pass
+        d = Deferred()
+        imager = self.cache.dashboards["dash1"]
+        self.cache._generate_image(d, imager)
+        png = yield d
+        self.assertEqual(png, "A dummy PNG.")
 
     def test_refresh_images(self):
         pass
