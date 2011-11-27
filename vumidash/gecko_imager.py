@@ -16,7 +16,7 @@ from twisted.application.service import Service
 from twisted.web import http
 from twisted.web.server import Site
 from twisted.web.resource import Resource
-from twisted.internet import reactor
+from twisted.internet import reactor, threads
 from twisted.internet.defer import Deferred, inlineCallbacks
 from twisted.internet.task import LoopingCall
 
@@ -76,23 +76,9 @@ class DashboardCache(object):
     @inlineCallbacks
     def _refresh_images(self):
         for name, imager in self.dashboards.items():
-            d = Deferred()
-            reactor.callInThread(self._generate_image, d, imager)
-            png = yield d
+            png = yield threads.deferToThread(imager.generate_png)
             if png is not None:
                 self.pngs[name] = png
-
-    def _generate_image(self, d, imager):
-        """Generates a PNG from the given imager.
-
-        Fires the given deferred when done.
-        """
-        try:
-            png = imager.generate_png()
-        except Exception, e:
-            d.errback(e)
-        else:
-            d.callback(png)
 
     def get_png(self, name):
         return self.pngs.get(name)

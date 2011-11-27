@@ -34,35 +34,44 @@ class DummyImager(DashboardImager):
 
 class TestDashboardCache(unittest.TestCase):
 
+    timeout = 5
+
     def setUp(self):
         self.patch(gecko_imager, 'DashboardImager', DummyImager)
         self.cache = DashboardCache("http://example.com/selenium", {
             "dash1": "http://example.com/dash1",
             }, 5)
-        self.cache.start()
 
     def tearDown(self):
         self.cache.stop()
 
     @inlineCallbacks
-    def test_generate_image(self):
-        d = Deferred()
-        imager = self.cache.dashboards["dash1"]
-        self.cache._generate_image(d, imager)
-        png = yield d
-        self.assertEqual(png, "A dummy PNG.")
-
-    @inlineCallbacks
     def test_refresh_images(self):
-        self.cache.stop()
-        self.cache.pngs.clear()
         yield self.cache._refresh_images()
         self.assertEqual(self.cache.pngs, {
             "dash1": "A dummy PNG.",
             })
 
+    @inlineCallbacks
     def test_get_png(self):
-        pass
+        yield self.cache._refresh_images()
+        png = self.cache.get_png("dash1")
+        self.assertEqual(png, "A dummy PNG.")
+
+    def test_get_png_missing(self):
+        png = self.cache.get_png("dash1")
+        self.assertEqual(png, None)
+
+    def test_start_and_stop(self):
+        self.cache.start()
+        self.assertTrue(self.cache.update_task.running)
+        self.assertEqual(self.cache.update_task.f,
+                         self.cache._refresh_images)
+        self.assertEqual(self.cache.update_task.interval,
+                         5)
+
+        self.cache.stop()
+        self.assertFalse(self.cache.update_task.running)
 
 
 class TestGeckoImageServer(unittest.TestCase):
