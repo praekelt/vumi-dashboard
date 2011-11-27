@@ -82,6 +82,7 @@ class DashboardCache(object):
         for name, imager in self.dashboards.items():
             d = threads.deferToThread(imager.generate_png)
             d.addErrback(lambda failure: log.err(failure))
+            log.msg("Generating image for %s (%s)" % (name, imager.url))
             png = yield d
             if png is not None:
                 self.pngs[name] = png
