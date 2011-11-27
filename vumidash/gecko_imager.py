@@ -101,7 +101,8 @@ class DashboardCache(object):
         self.update_task.start(self.update_interval)
 
     def stop(self):
-        self.update_task.stop()
+        if self.update_task.running:
+            self.update_task.stop()
 
 
 class DashboardResource(Resource):
