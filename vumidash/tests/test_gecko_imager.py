@@ -6,7 +6,6 @@ from twisted.trial import unittest
 from twisted.internet.defer import inlineCallbacks
 from vumidash import gecko_imager
 from vumidash.gecko_imager import DashboardImager, GeckoImageServer
-from vumidash.tests.utils import Mock
 
 
 class TestDashboardImager(unittest.TestCase):
@@ -34,12 +33,10 @@ class DummyImager(DashboardImager):
 class TestDashboardCache(unittest.TestCase):
 
     def setUp(self):
-        self.mock_imager = Mock('vumidash.gecko_imager', 'DashboardImager',
-                                DummyImager)
-        self.mock_imager.enter()
+        self.patch(gecko_imager, 'DashboardImager', DummyImager)
 
     def tearDown(self):
-        self.mock_imager.exit()
+        pass
 
     def test_generate_image(self):
         pass
