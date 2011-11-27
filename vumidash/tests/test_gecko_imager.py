@@ -133,9 +133,11 @@ class TestGeckoImageServer(unittest.TestCase):
         data = yield d
         returnValue(data)
 
+    @inlineCallbacks
     def test_dashboard(self):
-        # TODO:
-        pass
+        yield self.service.dashboard_cache._refresh_images()
+        result = yield self.get_route("dashboard/dash1")
+        self.assertEqual(result, "A dummy PNG.")
 
     @inlineCallbacks
     def test_uncached_dashboard(self):
