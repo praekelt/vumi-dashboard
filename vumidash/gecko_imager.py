@@ -133,17 +133,21 @@ class DashboardResource(Resource):
     HTML_TEMPLATE = pkg_resources.resource_string(
         __name__, "dashboard_list_template.html")
 
-    LINK_TEMPLATE = ('<li><a href="png/%(dashboard)s">%(dashboard)s</a></li>')
+    LINK_TEMPLATE = ('<li><a href="/%(web_path)s/png/%(dashboard)s">'
+                     '%(dashboard)s</a></li>')
 
-    def __init__(self, dashboard_cache):
+    def __init__(self, web_path, dashboard_cache):
         Resource.__init__(self)
+        self.web_path = web_path
         self.dashboard_cache = dashboard_cache
         self.putChild('png', DashboardPngResource(dashboard_cache))
 
     def get_links(self):
         links = []
         for name in self.dashboard_cache.dashboards:
-            links.append(self.LINK_TEMPLATE % {"dashboard": name})
+            links.append(self.LINK_TEMPLATE % {
+                "web_path": self.web_path,
+                "dashboard": name})
         return links
 
     def render_GET(self, request):
@@ -169,7 +173,7 @@ class ImageServerResource(Resource):
     def __init__(self, web_path, dashboard_cache):
         Resource.__init__(self)
         self.putChild('health', HealthResource())
-        self.putChild(web_path, DashboardResource(dashboard_cache))
+        self.putChild(web_path, DashboardResource(web_path, dashboard_cache))
 
 
 class GeckoImageServer(Service):

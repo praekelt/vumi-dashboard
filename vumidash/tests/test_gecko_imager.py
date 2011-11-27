@@ -198,7 +198,7 @@ class TestGeckoImageServer(unittest.TestCase):
         links = [elem.attributes['href'].value
                  for elem in doc.getElementsByTagName('a')]
         self.assertEqual(links, [
-            "png/dash1",
+            "/vumidashtest/png/dash1",
             ])
 
     @inlineCallbacks
