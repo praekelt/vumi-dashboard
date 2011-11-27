@@ -5,25 +5,57 @@ from xml.dom import minidom
 
 from twisted.trial import unittest
 from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet import reactor, threads
 from twisted.web.client import getPage
+from twisted.web import http
+from twisted.web.server import Site
+from twisted.web.resource import Resource
+
 from vumidash import gecko_imager
 from vumidash.gecko_imager import (DashboardImager, DashboardCache,
                                    GeckoImageServer)
 
 
+class MockGeckoboardResource(Resource):
+    isLeaf = True
+
+    GECKO_HTML = """<html><body>
+    <div id="dashboard-wrapper">
+        <div class="b-widget loaded">Widget 1</div>
+        <div class="b-widget loaded">Widget 2</div>
+    </div>
+    </html>
+    """
+
+    def render_GET(self, request):
+        request.setResponseCode(http.OK)
+        request.setHeader("content-type", "text/html")
+        return self.GECKO_HTML
+
+
 class TestDashboardImager(unittest.TestCase):
 
+    @inlineCallbacks
     def setUp(self):
         remote = os.environ.get("VUMIDASH_SELENIUM_REMOTE")
         if remote is None:
             raise unittest.SkipTest("Define VUMIDASH_SELENIUM_REMOTE"
                                     " to run DashboardImager tests.")
-        # TODO: implement proper test HTTP service
-        url = "http://foo/"
+        site = Site(MockGeckoboardResource())
+        self.webserver = yield reactor.listenTCP(0, site)
+        addr = self.webserver.getHost()
+        url = "http://127.0.0.1:%s/" % addr.port
         self.imager = DashboardImager(remote, url)
 
+    @inlineCallbacks
+    def tearDown(self):
+        if hasattr(self, "webserver"):
+            yield self.webserver.loseConnection()
+
+    @inlineCallbacks
     def test_generate_image(self):
-        png = self.imager.generate_image()
+        png = yield threads.deferToThread(self.imager.generate_png)
+        open("test.png", "wb").write(png)
         self.assertEqual(png[:8], "\x89PNG\r\n\x1A\n")
 
 
