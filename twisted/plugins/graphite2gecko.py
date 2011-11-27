@@ -28,9 +28,6 @@ class Graphite2GeckoServiceMaker(object):
     options = Options
 
     def makeService(self, options):
-        """
-        Construct a TCPServer from a factory defined in myproject.
-        """
         graphite_url = options["graphite-url"]
         port = int(options["port"])
         if options["dummy"]:
