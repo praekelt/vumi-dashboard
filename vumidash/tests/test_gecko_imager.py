@@ -1,6 +1,7 @@
 """Tests for vumidash.gecko_imager."""
 
 import os
+from xml.dom import minidom
 
 from twisted.trial import unittest
 from twisted.internet.defer import inlineCallbacks, returnValue
@@ -109,10 +110,12 @@ class TestGeckoImageServer(unittest.TestCase):
     @inlineCallbacks
     def setUp(self):
         self.patch(gecko_imager, 'DashboardImager', DummyImager)
+        self.web_path = "vumidashtest"
         dashboards = {
             "dash1": "http://example.com/dash1",
             }
-        self.service = GeckoImageServer(0, "http://example.com/selenium",
+        self.service = GeckoImageServer(self.web_path, 0,
+                                        "http://example.com/selenium",
                                         dashboards, 30)
         yield self.service.startService()
         # stop dashboard cache to give explicit control during tests
@@ -127,7 +130,7 @@ class TestGeckoImageServer(unittest.TestCase):
 
     @inlineCallbacks
     def get_route(self, route, errback=None):
-        d = getPage(self.url + route, timeout=1)
+        d = getPage(self.url + self.web_path + route, timeout=1)
         if errback:
             d.addErrback(errback)
         data = yield d
@@ -136,23 +139,37 @@ class TestGeckoImageServer(unittest.TestCase):
     @inlineCallbacks
     def test_dashboard(self):
         yield self.service.dashboard_cache._refresh_images()
-        result = yield self.get_route("dashboard/dash1")
+        result = yield self.get_route("/png/dash1")
         self.assertEqual(result, "A dummy PNG.")
 
     @inlineCallbacks
     def test_uncached_dashboard(self):
         errors = []
-        yield self.get_route("dashboard/dash1", errback=errors.append)
+        yield self.get_route("/png/dash1", errback=errors.append)
         [error] = errors
         self.assertEqual(error.getErrorMessage(), "503 Dashboard not loaded.")
 
     @inlineCallbacks
     def test_unknown_dashboard(self):
         errors = []
-        yield self.get_route("dashboard/unknown1", errback=errors.append)
+        yield self.get_route("/png/unknown1", errback=errors.append)
         [error] = errors
         self.assertEqual(error.getErrorMessage(), "404 Dashboard not found.")
 
+    @inlineCallbacks
     def test_dashboard_list(self):
-        # TODO:
-        pass
+        result = yield self.get_route("")
+        doc = minidom.parseString(result)
+        [title] = doc.getElementsByTagName('title')
+        self.assertEqual(title.childNodes[0].wholeText,
+                         u'Vumidash Dashboard Cache')
+        links = [elem.attributes['href'].value
+                 for elem in doc.getElementsByTagName('a')]
+        self.assertEqual(links, [
+            "png/dash1",
+            ])
+
+    @inlineCallbacks
+    def test_health_resource(self):
+        result = yield getPage(self.url + "health", timeout=1)
+        self.assertEqual(result, "OK")
