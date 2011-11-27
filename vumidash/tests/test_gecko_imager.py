@@ -40,6 +40,7 @@ class TestDashboardCache(unittest.TestCase):
         self.patch(gecko_imager, 'DashboardImager', DummyImager)
         self.cache = DashboardCache("http://example.com/selenium", {
             "dash1": "http://example.com/dash1",
+            "dash2": "http://example.com/dash2",
             }, 5)
 
     def tearDown(self):
@@ -50,6 +51,7 @@ class TestDashboardCache(unittest.TestCase):
         yield self.cache._refresh_images()
         self.assertEqual(self.cache.pngs, {
             "dash1": "A dummy PNG.",
+            "dash2": "A dummy PNG.",
             })
 
     @inlineCallbacks
@@ -72,6 +74,23 @@ class TestDashboardCache(unittest.TestCase):
 
         self.cache.stop()
         self.assertFalse(self.cache.update_task.running)
+
+    @inlineCallbacks
+    def test_failed_image(self):
+        class FailedPng(Exception):
+            pass
+
+        def fail():
+            raise FailedPng("No PNG. :(")
+
+        self.cache.dashboards["dash1"].generate_png = fail
+        yield self.cache._refresh_images()
+        errors = self.flushLoggedErrors(FailedPng)
+        self.assertEqual(len(errors), 1)
+        self.assertEqual(self.cache.pngs, {
+            "dash1": None,
+            "dash2": "A dummy PNG.",
+            })
 
 
 class TestGeckoImageServer(unittest.TestCase):
