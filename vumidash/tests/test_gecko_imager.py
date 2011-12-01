@@ -206,6 +206,13 @@ class TestGeckoImageServer(unittest.TestCase):
                          "/vumidashtest/png/dash1")
 
     @inlineCallbacks
+    def test_unknown_dashboard_html(self):
+        errors = []
+        yield self.get_route("/dash/unknown1", errback=errors.append)
+        [error] = errors
+        self.assertEqual(error.getErrorMessage(), "404 Dashboard not found.")
+
+    @inlineCallbacks
     def test_dashboard_list(self):
         result = yield self.get_route("")
         doc = minidom.parseString(result)
