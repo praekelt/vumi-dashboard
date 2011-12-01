@@ -33,11 +33,15 @@ class DashboardImager(object):
     :type url: str
     :param url:
         URL of the dashboard
+    :type title: str
+    :param title:
+        A human readable name for the dashboard
     """
 
-    def __init__(self, remote, url):
+    def __init__(self, remote, url, title=None):
         self.remote = remote
         self.url = url
+        self.title = title
 
     def _page_ready(self, driver):
         """Check that all the widgets are loaded."""
@@ -71,8 +75,9 @@ class DashboardCache(object):
         self.update_interval = update_interval
         self.dashboards = {}
         self.pngs = {}
-        for name, url in dashboards.items():
-            self.dashboards[name] = DashboardImager(remote, url)
+        for name, config in dashboards.items():
+            config.setdefault('title', name.title())
+            self.dashboards[name] = DashboardImager(remote, **config)
             self.pngs[name] = None
         self.update_task = LoopingCall(self._refresh_images)
         self.update_task_done = None
@@ -136,18 +141,24 @@ class DashboardHtmlResource(Resource):
 
     IMG_LINK_TEMPLATE = '<img src="/%(web_path)s/png/%(dashboard)s" />'
 
-    def __init__(self, web_path):
+    def __init__(self, web_path, dashboard_cache):
         Resource.__init__(self)
         self.web_path = web_path
+        self.dashboard_cache = dashboard_cache
 
     def render_GET(self, request):
         dashboard = ".".join(request.postpath)
+        if not dashboard in self.dashboard_cache.dashboards:
+            request.setResponseCode(http.NOT_FOUND, "Dashboard not found.")
+            request.setHeader("Content-Type", "text/plain")
+            return "Dashboard %r not found" % (dashboard,)
+        title = self.dashboard_cache.dashboards[dashboard].title
         img_tag = self.IMG_LINK_TEMPLATE % {
             'web_path': self.web_path,
             'dashboard': dashboard,
             }
         context = {
-            'title': dashboard.title(),
+            'title': title,
             'img_tag': img_tag,
             }
         request.setResponseCode(http.OK)
@@ -161,21 +172,22 @@ class DashboardResource(Resource):
         __name__, "dashboard_list_template.html")
 
     LINK_TEMPLATE = ('<li><a href="/%(web_path)s/dash/%(dashboard)s">'
-                     '%(dashboard)s</a></li>')
+                     '%(title)s</a></li>')
 
     def __init__(self, web_path, dashboard_cache):
         Resource.__init__(self)
         self.web_path = web_path
         self.dashboard_cache = dashboard_cache
         self.putChild('png', DashboardPngResource(dashboard_cache))
-        self.putChild('dash', DashboardHtmlResource(web_path))
+        self.putChild('dash', DashboardHtmlResource(web_path, dashboard_cache))
 
     def get_links(self):
         links = []
-        for name in self.dashboard_cache.dashboards:
+        for name, imager in self.dashboard_cache.dashboards.items():
             links.append(self.LINK_TEMPLATE % {
                 "web_path": self.web_path,
-                "dashboard": name})
+                "dashboard": name,
+                "title": imager.title})
         return links
 
     def render_GET(self, request):
@@ -219,7 +231,9 @@ class GeckoImageServer(Service):
         URL of the Selenium server to use.
     :type dashboard: dict
     :param dashboard:
-        Mapping from dashboard names to dashboard URLs.
+        Mapping from dashboard keys (short tags, no spaces or
+        characters that need URL escaping) to dashboard configuration
+        dictionaries (should contain keys: url and title).
     :type update_interval: float
     :param update_interval:
         Number of seconds between dashboard image updates.

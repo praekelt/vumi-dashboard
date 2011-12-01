@@ -73,8 +73,9 @@ class TestDashboardCache(unittest.TestCase):
     def setUp(self):
         self.patch(gecko_imager, 'DashboardImager', DummyImager)
         self.cache = DashboardCache("http://example.com/selenium", {
-            "dash1": "http://example.com/dash1",
-            "dash2": "http://example.com/dash2",
+            "dash1": {"url": "http://example.com/dash1"},
+            "dash2": {"url": "http://example.com/dash2",
+                      "title": "Foo"},
             }, 5)
 
     def tearDown(self):
@@ -136,6 +137,10 @@ class TestDashboardCache(unittest.TestCase):
             "dash2": None,
             })
 
+    def test_title(self):
+        self.assertEqual(self.cache.dashboards["dash1"].title, "Dash1")
+        self.assertEqual(self.cache.dashboards["dash2"].title, "Foo")
+
 
 class TestGeckoImageServer(unittest.TestCase):
 
@@ -144,7 +149,10 @@ class TestGeckoImageServer(unittest.TestCase):
         self.patch(gecko_imager, 'DashboardImager', DummyImager)
         self.web_path = "vumidashtest"
         dashboards = {
-            "dash1": "http://example.com/dash1",
+            "dash1": {
+                "url": "http://example.com/dash1",
+                "title": "Dash1 Title",
+                },
             }
         self.service = GeckoImageServer(self.web_path, 0,
                                         "http://example.com/selenium",
@@ -209,6 +217,9 @@ class TestGeckoImageServer(unittest.TestCase):
         self.assertEqual(links, [
             "/vumidashtest/dash/dash1",
             ])
+        titles = [elem.childNodes[0].wholeText
+                 for elem in doc.getElementsByTagName('a')]
+        self.assertEqual(titles, ["Dash1 Title"])
 
     @inlineCallbacks
     def test_health_resource(self):
