@@ -128,12 +128,39 @@ class DashboardPngResource(Resource):
         return png
 
 
+class DashboardHtmlResource(Resource):
+    isLeaf = True
+
+    HTML_TEMPLATE = pkg_resources.resource_string(
+        __name__, "dashboard_template.html")
+
+    IMG_LINK_TEMPLATE = '<img src="/%(web_path)s/png/%(dashboard)s" />'
+
+    def __init__(self, web_path):
+        Resource.__init__(self)
+        self.web_path = web_path
+
+    def render_GET(self, request):
+        dashboard = ".".join(request.postpath)
+        img_tag = self.IMG_LINK_TEMPLATE % {
+            'web_path': self.web_path,
+            'dashboard': dashboard,
+            }
+        context = {
+            'title': dashboard.title(),
+            'img_tag': img_tag,
+            }
+        request.setResponseCode(http.OK)
+        request.setHeader("content-type", "text/html")
+        return self.HTML_TEMPLATE % context
+
+
 class DashboardResource(Resource):
 
     HTML_TEMPLATE = pkg_resources.resource_string(
         __name__, "dashboard_list_template.html")
 
-    LINK_TEMPLATE = ('<li><a href="/%(web_path)s/png/%(dashboard)s">'
+    LINK_TEMPLATE = ('<li><a href="/%(web_path)s/dash/%(dashboard)s">'
                      '%(dashboard)s</a></li>')
 
     def __init__(self, web_path, dashboard_cache):
@@ -141,6 +168,7 @@ class DashboardResource(Resource):
         self.web_path = web_path
         self.dashboard_cache = dashboard_cache
         self.putChild('png', DashboardPngResource(dashboard_cache))
+        self.putChild('dash', DashboardHtmlResource(web_path))
 
     def get_links(self):
         links = []

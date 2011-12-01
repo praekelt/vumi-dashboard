@@ -189,6 +189,15 @@ class TestGeckoImageServer(unittest.TestCase):
         self.assertEqual(error.getErrorMessage(), "404 Dashboard not found.")
 
     @inlineCallbacks
+    def test_dashboard_html(self):
+        yield self.service.dashboard_cache._refresh_images()
+        result = yield self.get_route("/dash/dash1")
+        doc = minidom.parseString(result)
+        [img] = doc.getElementsByTagName('img')
+        self.assertEqual(img.attributes['src'].value,
+                         "/vumidashtest/png/dash1")
+
+    @inlineCallbacks
     def test_dashboard_list(self):
         result = yield self.get_route("")
         doc = minidom.parseString(result)
@@ -198,7 +207,7 @@ class TestGeckoImageServer(unittest.TestCase):
         links = [elem.attributes['href'].value
                  for elem in doc.getElementsByTagName('a')]
         self.assertEqual(links, [
-            "/vumidashtest/png/dash1",
+            "/vumidashtest/dash/dash1",
             ])
 
     @inlineCallbacks
