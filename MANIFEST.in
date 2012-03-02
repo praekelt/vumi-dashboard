@@ -1,0 +1,17 @@
+# Source distribution files.
+include .coveragerc
+include LICENSE
+include README.rst
+include setup.py
+include tox.ini
+
+recursive-include config *
+recursive-include docs *
+prune docs/_build
+recursive-include utils *
+
+# Python package data files.
+include twisted/plugins/*.py
+
+# Prune stray bytecode files.
+global-exclude *.pyc
