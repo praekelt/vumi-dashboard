@@ -3,8 +3,6 @@
 import json
 from StringIO import StringIO
 from urllib import quote
-from datetime import timedelta
-
 from twisted.web.client import Agent
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred
@@ -51,6 +49,9 @@ def filter_nulls_as_zeroes(response):
 
 
 def filter_latest(series):
+    if not series:
+        # Let's not crash if we have no data.
+        series = [(None, None)]
     return series[0][1], series[-1][1]
 
 
