@@ -1,6 +1,6 @@
 """Test the Holodeck data pusher."""
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from twisted.trial import unittest
 from twisted.internet.defer import inlineCallbacks
@@ -67,6 +67,10 @@ class TestHoloSamples(unittest.TestCase):
         self.dummy_client = DummyTxClient(server)
         return self.dummy_client
 
+    def get_value(self, metric):
+        values = self.metrics_source.prev_values[metric]
+        return values[-1]
+
     def test_create(self):
         self.assertEqual(self.hs.server, "server")
         self.assertEqual(self.hs.api_key, "api_key")
@@ -82,6 +86,24 @@ class TestHoloSamples(unittest.TestCase):
     @inlineCallbacks
     def test_push(self):
         yield self.hs.push(120.0, self.metrics_source)
+        self.assertEqual(self.dummy_client.sends, [
+                ('server', 'api_key', [
+                        ['holo1', self.get_value('test.gecko1')],
+                        ['holo2', self.get_value('test.gecko2')]],
+                 datetime.fromtimestamp(120.0))
+        ])
+
+    @inlineCallbacks
+    def test_bad_metric(self):
+        self.hs.samples.append(HoloSample("bad.gecko", "holo3"))
+        yield self.hs.push(120.0, self.metrics_source)
+        self.assertEqual(self.dummy_client.sends, [
+                ('server', 'api_key', [
+                        ['holo1', self.get_value('test.gecko1')],
+                        ['holo2', self.get_value('test.gecko2')],
+                        ['holo3', 0.0]],
+                 datetime.fromtimestamp(120.0))
+        ])
 
 
 class TestHolodeckPusher(unittest.TestCase):

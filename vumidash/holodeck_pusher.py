@@ -7,7 +7,8 @@ import math
 from datetime import datetime, timedelta
 
 from twisted.application.service import Service
-from twisted.internet.defer import inlineCallbacks, gatherResults
+from twisted.internet.defer import (
+    inlineCallbacks, gatherResults, maybeDeferred)
 from twisted.python import log
 from twisted.internet import reactor
 from photon.txclient import TxClient
@@ -51,9 +52,12 @@ class HoloSamples(object):
         client = TxClient(self.server)
         holo_samples = []
         for sample in self.samples:
-            value = yield metrics_source.get_latest(
-                sample.gecko, sample.from_dt, sample.until_dt, sample.step_dt)
-            holo_samples.append([sample.holo, value])
+            d = maybeDeferred(metrics_source.get_latest, sample.gecko,
+                              sample.from_dt, sample.until_dt, sample.step_dt)
+            # replace failures with 0 values
+            d.addErrback(lambda f: [0.0])
+            values = yield d
+            holo_samples.append([sample.holo, values[-1]])
         yield client.send(samples=holo_samples,
                           api_key=self.api_key,
                           timestamp=datetime.fromtimestamp(now))
