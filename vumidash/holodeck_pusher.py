@@ -135,6 +135,7 @@ class HolodeckPusher(object):
 
     def _add_waiting(self, d):
         self._waiting.add(d)
+        d.addErrback(lambda f: log.err(f))
         d.addBoth(lambda r: self._waiting.discard(d))
 
     def _create_next_heap(self):
