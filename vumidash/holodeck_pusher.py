@@ -78,27 +78,8 @@ class HolodeckPusher(object):
     :type metric_source: :class:`vumidash.base.MetricSource`
     :param metric_source: Source to read metrics from.
 
-    :param dict config: Cofiguration dictionary. Top-level keys are
-        Holodeck server URLs. Second-level keys are API keys. Each API
-        key is associated with a frequency and a list of metrics
-        (Holodeck samples). A metric consists of a geckoboard metric
-        definition and a Holodeck sample name. E.g.:
-
-        { "http://holodeck1.example.com": {
-            "f45c18ff66f8469bdcefe12290dda929": {
-               "frequency": 60,
-               "samples": [
-                   {"gecko": "my.metric.value", "holo": "Line 1"},
-                   {"gecko": "my.metric.other", "holo": "Line 2"},
-               ],
-            },
-            "f45c18ff66f8469bdcefe12290dda92a": {
-               "frequency": 60,
-               "samples": [
-                   {"gecko": "my.metric.another", "holo": "Gauge 1"},
-               ],
-            },
-        }}
+    :type samples: list of :class:`HoloSamples`
+    :param samples: List of sample sets to push to Holodeck(s).
     """
 
     clock = reactor  # testing hook
@@ -112,6 +93,35 @@ class HolodeckPusher(object):
 
     @classmethod
     def from_config(cls, metrics_source, config):
+        """Construct a HolodeckPusher from a metric source and
+        a configuration dictionary.
+
+        :type metric_source: :class:`vumidash.base.MetricSource`
+        :param metric_source: Source to read metrics from.
+
+        :param dict config: Cofiguration dictionary. Top-level keys
+            are Holodeck server URLs. Second-level keys are API
+            keys. Each API key is associated with a frequency and a
+            list of metrics (Holodeck samples). A metric consists of a
+            geckoboard metric definition and a Holodeck sample
+            name. E.g.:
+
+            { "http://holodeck1.example.com": {
+                "f45c18ff66f8469bdcefe12290dda929": {
+                   "frequency": 60,
+                   "samples": [
+                       {"gecko": "my.metric.value", "holo": "Line 1"},
+                       {"gecko": "my.metric.other", "holo": "Line 2"},
+                   ],
+                },
+                "f45c18ff66f8469bdcefe12290dda92a": {
+                   "frequency": 60,
+                   "samples": [
+                       {"gecko": "my.metric.another", "holo": "Gauge 1"},
+                   ],
+                },
+            }}
+        """
         samples_list = []
         for server, server_defn in config.iteritems():
             for api_key, sample_defn in server_defn.iteritems():
@@ -132,7 +142,7 @@ class HolodeckPusher(object):
         next_time, sample = heapq.heappop(self._next_heap)
         now = self.clock.seconds()
         self._next_call = self.clock.callLater(
-            next_time - now, self._process_next, next_time, sample)
+            max(next_time - now, 0), self._process_next, next_time, sample)
 
     def _process_next(self, now, sample):
         heapq.heappush(self._next_heap, (sample.next(now), sample))
@@ -144,7 +154,7 @@ class HolodeckPusher(object):
         self._call_next_later()
 
     def start(self):
-        if not self._samples:
+        if not self.samples:
             return
         self._create_next_heap()
         self._call_next_later()

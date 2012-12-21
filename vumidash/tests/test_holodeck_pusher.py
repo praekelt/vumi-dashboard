@@ -3,7 +3,7 @@
 from datetime import datetime, timedelta
 
 from twisted.trial import unittest
-from twisted.internet.defer import inlineCallbacks
+from twisted.internet.defer import inlineCallbacks, Deferred
 from twisted.internet.task import Clock
 
 from vumidash.dummy_client import DummyClient
@@ -107,14 +107,34 @@ class TestHoloSamples(unittest.TestCase):
         ])
 
 
+class DummySamples(HoloSamples):
+    def __init__(self, frequency, expected_metrics_source):
+        super(DummySamples, self).__init__("server", "api_key",
+                                           frequency, [])
+        self.expected_metrics_source = expected_metrics_source
+        self.pushes = []
+        self.deferreds = []
+
+    def callback_all(self, result=None):
+        for d in self.deferreds:
+            d.callback(result)
+
+    def push(self, now, metrics_source):
+        assert metrics_source is self.expected_metrics_source
+        d = Deferred()
+        self.pushes.append(now)
+        self.deferreds.append(d)
+        return d
+
+
 class TestHolodeckPusher(unittest.TestCase):
     def setUp(self):
         self.clock = Clock()
         self.patch(HolodeckPusher, 'clock', self.clock)
-        self.metric_source = object()
+        self.metrics_source = object()
 
     def test_from_config(self):
-        hp = HolodeckPusher.from_config(self.metric_source, {
+        hp = HolodeckPusher.from_config(self.metrics_source, {
             "http://holodeck1.example.com": {
                 "f45c18ff66f8469bdcefe12290dda929": {
                    "frequency": 60,
@@ -131,7 +151,7 @@ class TestHolodeckPusher(unittest.TestCase):
                 },
             }
         })
-        self.assertEqual(hp.metrics_source, self.metric_source)
+        self.assertEqual(hp.metrics_source, self.metrics_source)
         self.assertEqual(hp.samples, [
                 HoloSamples("http://holodeck1.example.com",
                             "f45c18ff66f8469bdcefe12290dda929",
@@ -143,3 +163,16 @@ class TestHolodeckPusher(unittest.TestCase):
                             60,
                             [HoloSample("my.metric.another", "Gauge 1")]),
         ])
+
+    @inlineCallbacks
+    def test_sampling(self):
+        ds = DummySamples(10, self.metrics_source)
+        hp = HolodeckPusher(self.metrics_source, [ds])
+        yield hp.start()
+        self.assertEqual(ds.pushes, [])
+        self.clock.advance(10)
+        self.assertEqual(ds.pushes, [10.0])
+        self.clock.pump([1.0, 5.0, 4.0, 10.0, 20.0])
+        self.assertEqual(ds.pushes, [10.0, 20.0, 30.0, 40.0, 50.0])
+        ds.callback_all()
+        yield hp.stop()
