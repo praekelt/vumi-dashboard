@@ -90,7 +90,7 @@ class HolodeckPusher(object):
         self.samples = samples
         self._next_call = None
         self._next_heap = None
-        self._waiting = []
+        self._waiting = set()
 
     @classmethod
     def from_config(cls, metrics_source, config):
@@ -133,6 +133,10 @@ class HolodeckPusher(object):
                                                 samples))
         return cls(metrics_source, samples_list)
 
+    def _add_waiting(self, d):
+        self._waiting.add(d)
+        d.addBoth(lambda r: self._waiting.discard(d))
+
     def _create_next_heap(self):
         now = self.clock.seconds()
         self._next_heap = [(sample.next(now), sample) for sample in
@@ -149,7 +153,7 @@ class HolodeckPusher(object):
         heapq.heappush(self._next_heap, (sample.next(now), sample))
         try:
             d = sample.push(now, self.metrics_source)
-            self._waiting.append(d)
+            self._add_waiting(d)
         except Exception:
             log.err()
         self._call_next_later()

@@ -192,3 +192,14 @@ class TestHolodeckPusher(unittest.TestCase):
         ds1.callback_all()
         ds2.callback_all()
         yield hp.stop()
+
+    @inlineCallbacks
+    def test_waiting_list_clears(self):
+        ds = DummySamples(10, self.metrics_source)
+        hp = HolodeckPusher(self.metrics_source, [ds])
+        yield hp.start()
+        self.clock.advance(50)
+        self.assertTrue(hp._waiting)
+        ds.callback_all()
+        self.assertFalse(hp._waiting)
+        yield hp.stop()
