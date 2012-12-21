@@ -176,3 +176,19 @@ class TestHolodeckPusher(unittest.TestCase):
         self.assertEqual(ds.pushes, [10.0, 20.0, 30.0, 40.0, 50.0])
         ds.callback_all()
         yield hp.stop()
+
+    @inlineCallbacks
+    def test_sampling_with_two_sample_sets(self):
+        ds1 = DummySamples(10, self.metrics_source)
+        ds2 = DummySamples(5, self.metrics_source)
+        hp = HolodeckPusher(self.metrics_source, [ds1, ds2])
+        yield hp.start()
+        self.assertEqual(ds1.pushes, [])
+        self.assertEqual(ds2.pushes, [])
+        self.clock.advance(50)
+        self.assertEqual(ds1.pushes, [10.0, 20.0, 30.0, 40.0, 50.0])
+        self.assertEqual(ds2.pushes, [5.0, 10.0, 15.0, 20.0, 25.0, 30.0,
+                                      35.0, 40.0, 45.0, 50.0])
+        ds1.callback_all()
+        ds2.callback_all()
+        yield hp.stop()
