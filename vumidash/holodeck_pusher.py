@@ -4,7 +4,7 @@
 
 import heapq
 import math
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from twisted.application.service import Service
 from twisted.internet.defer import inlineCallbacks, gatherResults
@@ -14,13 +14,26 @@ from photon.txclient import TxClient
 
 
 class HoloSample(object):
-    def __init__(self, gecko, holo):
+    def __init__(self, gecko, holo, step_dt=60, from_dt=None, until_dt=None):
         self.gecko = gecko
         self.holo = holo
+        self.step_dt = timedelta(step_dt)
+        self.from_dt = (timedelta(from_dt) if from_dt is not None
+                        else -self.step_dt)
+        self.until_dt = (timedelta(until_dt) if until_dt is not None
+                         else timedelta(0))
+
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return False
+        return (self.gecko == other.gecko and self.holo == other.holo and
+                self.step_dt == other.step_dt and
+                self.from_dt == other.from_dt and
+                self.until_dt == other.until_dt)
 
     @classmethod
-    def from_config_list(cls, config_list):
-        return [cls(item['gecko'], item['holo']) for item in config_list]
+    def from_config(cls, config):
+        return cls(**config)
 
 
 class HoloSamples(object):
@@ -31,16 +44,15 @@ class HoloSamples(object):
         self.samples = samples
 
     def next(self, now):
-        return (math.floor(now / self.freq) + 1) * self.freq
+        return (math.floor(now / self.frequency) + 1) * self.frequency
 
     @inlineCallbacks
     def push(self, now, metrics_source):
         client = TxClient(self.server)
         holo_samples = []
-        from_dt, until_dt, step_dt = "?", "?", "?"
         for sample in self.samples:
-            value = yield metrics_source.get_latest(sample.gecko, from_dt,
-                                                    until_dt, step_dt)
+            value = yield metrics_source.get_latest(
+                sample.gecko, sample.from_dt, sample.until_dt, sample.step_dt)
             holo_samples.append([sample.holo, value])
         yield client.send(samples=holo_samples,
                           api_key=self.api_key,
@@ -91,7 +103,8 @@ class HolodeckPusher(object):
         for server, server_defn in config.iteritems():
             for api_key, sample_defn in server_defn.iteritems():
                 frequency = sample_defn['frequency']
-                samples = HoloSample.from_config_list(sample_defn['samples'])
+                samples = [HoloSample.from_config(s)
+                           for s in sample_defn['samples']]
                 self.samples.append(HoloSamples(server, api_key, frequency,
                                                 samples))
 
