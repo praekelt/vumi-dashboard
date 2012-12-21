@@ -32,7 +32,8 @@ class Graphite2HolodeckServiceMaker(object):
 
     def makeService(self, options):
         graphite_url = options["graphite-url"]
-        config = yaml.safe_load(options["config"])
+        with open(options["config"]) as f:
+            config = yaml.safe_load(f.read())
         if options["dummy"]:
             metrics_source = DummyClient()
         else:
