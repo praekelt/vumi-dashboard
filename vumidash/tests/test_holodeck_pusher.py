@@ -13,34 +13,34 @@ from vumidash.holodeck_pusher import (
 
 class TestHoloSample(unittest.TestCase):
     def test_create(self):
-        s = HoloSample("gecko-name", "holo-name")
-        self.assertEqual(s.gecko, "gecko-name")
+        s = HoloSample("metric-name", "holo-name")
+        self.assertEqual(s.metric, "metric-name")
         self.assertEqual(s.holo, "holo-name")
         self.assertEqual(s.step_dt, timedelta(60))
         self.assertEqual(s.from_dt, timedelta(-60))
         self.assertEqual(s.until_dt, timedelta(0))
 
     def test_create_non_default_step_dt(self):
-        s = HoloSample("gecko-name", "holo-name", step_dt=30)
+        s = HoloSample("metric-name", "holo-name", step_dt=30)
         self.assertEqual(s.step_dt, timedelta(30))
         self.assertEqual(s.from_dt, timedelta(-30))
 
     def test_eq(self):
-        s1 = HoloSample("gecko-name", "holo-name")
-        s2 = HoloSample("gecko-name", "holo-name")
+        s1 = HoloSample("metric-name", "holo-name")
+        s2 = HoloSample("metric-name", "holo-name")
         self.assertEqual(s1, s2)
 
     def test_not_eq(self):
-        s1 = HoloSample("gecko-name", "holo-name")
-        s2 = HoloSample("gecko-name", "holo-name", step_dt=30)
+        s1 = HoloSample("metric-name", "holo-name")
+        s2 = HoloSample("metric-name", "holo-name", step_dt=30)
         self.assertNotEqual(s1, s2)
 
     def test_from_config(self):
         s = HoloSample.from_config({
-                "gecko": "gecko-name",
+                "metric": "metric-name",
                 "holo": "holo-name",
         })
-        self.assertEqual(s, HoloSample("gecko-name", "holo-name"))
+        self.assertEqual(s, HoloSample("metric-name", "holo-name"))
 
 
 class DummyTxClient(object):
@@ -58,8 +58,8 @@ class TestHoloSamples(unittest.TestCase):
         self.dummy_client = None
         self.patch(vumidash.holodeck_pusher, 'TxClient', self.mk_client)
         self.samples = [
-            HoloSample("test.gecko1", "holo1"),
-            HoloSample("test.gecko2", "holo2"),
+            HoloSample("test.metric1", "holo1"),
+            HoloSample("test.metric2", "holo2"),
         ]
         self.hs = HoloSamples("server", "api_key", 60, self.samples)
         self.metrics_source = DummyClient()
@@ -89,19 +89,19 @@ class TestHoloSamples(unittest.TestCase):
         yield self.hs.push(120.0, self.metrics_source)
         self.assertEqual(self.dummy_client.sends, [
                 ('server', 'api_key', [
-                        ['holo1', self.get_value('test.gecko1')],
-                        ['holo2', self.get_value('test.gecko2')]],
+                        ['holo1', self.get_value('test.metric1')],
+                        ['holo2', self.get_value('test.metric2')]],
                  datetime.fromtimestamp(120.0))
         ])
 
     @inlineCallbacks
     def test_bad_metric(self):
-        self.hs.samples.append(HoloSample("bad.gecko", "holo3"))
+        self.hs.samples.append(HoloSample("bad.metric", "holo3"))
         yield self.hs.push(120.0, self.metrics_source)
         self.assertEqual(self.dummy_client.sends, [
                 ('server', 'api_key', [
-                        ['holo1', self.get_value('test.gecko1')],
-                        ['holo2', self.get_value('test.gecko2')],
+                        ['holo1', self.get_value('test.metric1')],
+                        ['holo2', self.get_value('test.metric2')],
                         ['holo3', 0.0]],
                  datetime.fromtimestamp(120.0))
         ])
@@ -139,14 +139,14 @@ class TestHolodeckPusher(unittest.TestCase):
                 "f45c18ff66f8469bdcefe12290dda929": {
                    "frequency": 60,
                    "samples": [
-                       {"gecko": "my.metric.value", "holo": "Line 1"},
-                       {"gecko": "my.metric.other", "holo": "Line 2"},
+                       {"metric": "my.metric.value", "holo": "Line 1"},
+                       {"metric": "my.metric.other", "holo": "Line 2"},
                    ],
                 },
                 "f45c18ff66f8469bdcefe12290dda92a": {
                    "frequency": 60,
                    "samples": [
-                       {"gecko": "my.metric.another", "holo": "Gauge 1"},
+                       {"metric": "my.metric.another", "holo": "Gauge 1"},
                    ],
                 },
             }

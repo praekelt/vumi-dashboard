@@ -15,8 +15,9 @@ from photon.txclient import TxClient
 
 
 class HoloSample(object):
-    def __init__(self, gecko, holo, step_dt=60, from_dt=None, until_dt=None):
-        self.gecko = gecko
+    def __init__(self, metric, holo, step_dt=60, from_dt=None,
+                 until_dt=None):
+        self.metric = metric
         self.holo = holo
         self.step_dt = timedelta(step_dt)
         self.from_dt = (timedelta(from_dt) if from_dt is not None
@@ -27,7 +28,7 @@ class HoloSample(object):
     def __eq__(self, other):
         if not isinstance(other, self.__class__):
             return False
-        return (self.gecko == other.gecko and self.holo == other.holo and
+        return (self.metric == other.metric and self.holo == other.holo and
                 self.step_dt == other.step_dt and
                 self.from_dt == other.from_dt and
                 self.until_dt == other.until_dt)
@@ -60,7 +61,7 @@ class HoloSamples(object):
         client = TxClient(self.server)
         holo_samples = []
         for sample in self.samples:
-            d = maybeDeferred(metrics_source.get_latest, sample.gecko,
+            d = maybeDeferred(metrics_source.get_latest, sample.metric,
                               sample.from_dt, sample.until_dt, sample.step_dt)
             # replace failures with 0 values
             d.addErrback(lambda f: [0.0])
@@ -103,21 +104,21 @@ class HolodeckPusher(object):
             are Holodeck server URLs. Second-level keys are API
             keys. Each API key is associated with a frequency and a
             list of metrics (Holodeck samples). A metric consists of a
-            geckoboard metric definition and a Holodeck sample
-            name. E.g.:
+            graphite metric definition (or equivalent for other
+            metrics sources) and a Holodeck sample name. E.g.:
 
             { "http://holodeck1.example.com": {
                 "f45c18ff66f8469bdcefe12290dda929": {
                    "frequency": 60,
                    "samples": [
-                       {"gecko": "my.metric.value", "holo": "Line 1"},
-                       {"gecko": "my.metric.other", "holo": "Line 2"},
+                       {"metric": "my.metric.value", "holo": "Line 1"},
+                       {"metric": "my.metric.other", "holo": "Line 2"},
                    ],
                 },
                 "f45c18ff66f8469bdcefe12290dda92a": {
                    "frequency": 60,
                    "samples": [
-                       {"gecko": "my.metric.another", "holo": "Gauge 1"},
+                       {"metric": "my.metric.another", "holo": "Gauge 1"},
                    ],
                 },
             }}
