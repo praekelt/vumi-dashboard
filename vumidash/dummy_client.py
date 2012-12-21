@@ -24,8 +24,8 @@ class DummyClient(MetricSource):
     def get_history(self, metric, start, end, summary_size, skip_nulls=True):
         if not metric.startswith(self.metric_prefix):
             raise UnknownMetricError("Uknown metric %r" % (metric,))
-        steps = (self.total_seconds((-start) - (-end))
-                 / float(self.total_seconds(summary_size)))
+        steps = int(self.total_seconds((-start) - (-end))
+                    / float(self.total_seconds(summary_size)))
         values = self.new_value(metric)
         while len(values) < steps:
             values = self.new_value(metric)
