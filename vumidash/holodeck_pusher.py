@@ -44,6 +44,14 @@ class HoloSamples(object):
         self.frequency = float(frequency)
         self.samples = samples
 
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return False
+        return (self.server == other.server and
+                self.api_key == other.api_key and
+                self.frequency == other.frequency and
+                self.samples == other.samples)
+
     def next(self, now):
         return (math.floor(now / self.frequency) + 1) * self.frequency
 
@@ -95,22 +103,24 @@ class HolodeckPusher(object):
 
     clock = reactor  # testing hook
 
-    def __init__(self, metrics_source, config):
+    def __init__(self, metrics_source, samples):
         self.metrics_source = metrics_source
-        self.samples = []
+        self.samples = samples
         self._next_call = None
         self._next_heap = None
         self._waiting = []
-        self._parse_config(config)
 
-    def _parse_config(self, config):
+    @classmethod
+    def from_config(cls, metrics_source, config):
+        samples_list = []
         for server, server_defn in config.iteritems():
             for api_key, sample_defn in server_defn.iteritems():
                 frequency = sample_defn['frequency']
                 samples = [HoloSample.from_config(s)
                            for s in sample_defn['samples']]
-                self.samples.append(HoloSamples(server, api_key, frequency,
+                samples_list.append(HoloSamples(server, api_key, frequency,
                                                 samples))
+        return cls(metrics_source, samples_list)
 
     def _create_next_heap(self):
         now = self.clock.seconds()
@@ -148,7 +158,8 @@ class HolodeckPusher(object):
 
 class HolodeckPusherService(Service):
     def __init__(self, metrics_source, config):
-        self.holodeck_pusher = HolodeckPusher(metrics_source, config)
+        self.holodeck_pusher = HolodeckPusher.from_config(metrics_source,
+                                                          config)
 
     @inlineCallbacks
     def startService(self):

@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 
 from twisted.trial import unittest
 from twisted.internet.defer import inlineCallbacks
+from twisted.internet.task import Clock
 
 from vumidash.dummy_client import DummyClient
 from vumidash.holodeck_pusher import (
@@ -107,5 +108,38 @@ class TestHoloSamples(unittest.TestCase):
 
 
 class TestHolodeckPusher(unittest.TestCase):
-    def test_todo(self):
-        self.fail("No tests yet.")
+    def setUp(self):
+        self.clock = Clock()
+        self.patch(HolodeckPusher, 'clock', self.clock)
+        self.metric_source = object()
+
+    def test_from_config(self):
+        hp = HolodeckPusher.from_config(self.metric_source, {
+            "http://holodeck1.example.com": {
+                "f45c18ff66f8469bdcefe12290dda929": {
+                   "frequency": 60,
+                   "samples": [
+                       {"gecko": "my.metric.value", "holo": "Line 1"},
+                       {"gecko": "my.metric.other", "holo": "Line 2"},
+                   ],
+                },
+                "f45c18ff66f8469bdcefe12290dda92a": {
+                   "frequency": 60,
+                   "samples": [
+                       {"gecko": "my.metric.another", "holo": "Gauge 1"},
+                   ],
+                },
+            }
+        })
+        self.assertEqual(hp.metrics_source, self.metric_source)
+        self.assertEqual(hp.samples, [
+                HoloSamples("http://holodeck1.example.com",
+                            "f45c18ff66f8469bdcefe12290dda929",
+                            60,
+                            [HoloSample("my.metric.value", "Line 1"),
+                             HoloSample("my.metric.other", "Line 2")]),
+                HoloSamples("http://holodeck1.example.com",
+                            "f45c18ff66f8469bdcefe12290dda92a",
+                            60,
+                            [HoloSample("my.metric.another", "Gauge 1")]),
+        ])
