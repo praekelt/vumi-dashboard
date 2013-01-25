@@ -37,8 +37,8 @@ class TestHoloSample(unittest.TestCase):
 
     def test_from_config(self):
         s = HoloSample.from_config({
-                "metric": "metric-name",
-                "holo": "holo-name",
+            "metric": "metric-name",
+            "holo": "holo-name",
         })
         self.assertEqual(s, HoloSample("metric-name", "holo-name"))
 
