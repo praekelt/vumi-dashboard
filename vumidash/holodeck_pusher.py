@@ -66,7 +66,9 @@ class HoloSamples(object):
             # replace failures with 0 values
             d.addErrback(lambda f: [0.0])
             values = yield d
-            holo_samples.append([sample.holo, values[-1]])
+            # 'or 0.0' is to protect against case where None is returned for
+            # the metric value (e.g. when a Graphite metric is missing)
+            holo_samples.append([sample.holo, values[-1] or 0.0])
         yield client.send(samples=holo_samples,
                           api_key=self.api_key,
                           timestamp=datetime.fromtimestamp(now))
