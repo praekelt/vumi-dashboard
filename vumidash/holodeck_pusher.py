@@ -34,8 +34,10 @@ class HoloSample(object):
                 self.until_dt == other.until_dt)
 
     @classmethod
-    def from_config(cls, config):
-        return cls(**config)
+    def from_config(cls, config, defaults=None):
+        params = defaults.copy() if defaults else {}
+        params.update(config)
+        return cls(**params)
 
 
 class HoloSamples(object):
@@ -129,7 +131,8 @@ class HolodeckPusher(object):
         for server, server_defn in config.iteritems():
             for api_key, sample_defn in server_defn.iteritems():
                 frequency = sample_defn['frequency']
-                samples = [HoloSample.from_config(s)
+                sample_defaults = sample_defn.get('sample_defaults', {})
+                samples = [HoloSample.from_config(s, sample_defaults)
                            for s in sample_defn['samples']]
                 samples_list.append(HoloSamples(server, api_key, frequency,
                                                 samples))

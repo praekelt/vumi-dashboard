@@ -42,6 +42,18 @@ class TestHoloSample(unittest.TestCase):
         })
         self.assertEqual(s, HoloSample("metric-name", "holo-name"))
 
+    def test_from_config_with_defaults(self):
+        s = HoloSample.from_config({
+            "metric": "metric-name",
+            "holo": "holo-name",
+            "step_dt": 30,
+        }, {
+            "step_dt": 60,
+            "from_dt": -200,
+        })
+        self.assertEqual(s, HoloSample("metric-name", "holo-name", step_dt=30,
+                                       from_dt=-200))
+
 
 class DummyTxClient(object):
     def __init__(self, server):
@@ -145,6 +157,9 @@ class TestHolodeckPusher(unittest.TestCase):
                 },
                 "f45c18ff66f8469bdcefe12290dda92a": {
                    "frequency": 60,
+                   "sample_defaults": {
+                       "step_dt": 100,
+                   },
                    "samples": [
                        {"metric": "my.metric.another", "holo": "Gauge 1"},
                    ],
@@ -161,7 +176,8 @@ class TestHolodeckPusher(unittest.TestCase):
                 HoloSamples("http://holodeck1.example.com",
                             "f45c18ff66f8469bdcefe12290dda92a",
                             60,
-                            [HoloSample("my.metric.another", "Gauge 1")]),
+                            [HoloSample("my.metric.another", "Gauge 1",
+                                        step_dt=100)]),
         ])
 
     @inlineCallbacks
