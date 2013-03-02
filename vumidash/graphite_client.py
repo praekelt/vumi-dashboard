@@ -1,3 +1,5 @@
+# -*- test-case-name: vumidash.tests.test_graphite_client -*-
+
 """MetricSource for retrieving metrics from Graphite."""
 
 import json
@@ -39,13 +41,16 @@ def all_datapoints(response):
     return datapoints
 
 
-def filter_datapoints(response):
-    return [(t, v) for t, v in all_datapoints(response) if v is not None]
+def summary_filter(series):
+    return series
 
 
-def filter_nulls_as_zeroes(response):
-    return [(t, v) if v is not None else (t, 0.0)
-            for t, v in all_datapoints(response)]
+def filter_datapoints(series):
+    return [(t, v) for t, v in series if v is not None]
+
+
+def filter_nulls_as_zeroes(series):
+    return [(t, v) if v is not None else (t, 0.0) for t, v in series]
 
 
 def filter_latest(series):
@@ -53,6 +58,10 @@ def filter_latest(series):
         # Let's not crash if we have no data.
         series = [(None, None)]
     return series[0][1], series[-1][1]
+
+
+def avg(series):
+    return sum(series) / len(series)
 
 
 class GraphiteClient(MetricSource):
@@ -63,14 +72,12 @@ class GraphiteClient(MetricSource):
     def __init__(self, url):
         self.url = url
 
-    def make_graphite_request(self, target, start, end, summary_size):
+    def make_graphite_request(self, target, start, end):
         t_from = self.make_graphite_timedelta(start)
         t_until = self.make_graphite_timedelta(end)
-        t_summary = self.make_graphite_timedelta(summary_size)
         agent = Agent(reactor)
         url = '%s/render?format=json&target=%s&from=%s&until=%s' % (
-            self.url, quote(self.format_metric(target, t_summary)),
-            t_from, t_until)
+            self.url, quote(target), t_from, t_until)
         print "URL:", url
         d = agent.request('GET', url)
         return d.addCallback(GraphiteDataReader.get_response)
@@ -82,21 +89,48 @@ class GraphiteClient(MetricSource):
             return '-0s'
         return '%ds' % totalseconds
 
-    def format_metric(self, metric, t_summary):
-        agg_method = "avg"
-        last_bit = metric.rstrip(')').split('.')[-1]
-        if last_bit in ('max', 'min', 'sum'):
-            agg_method = last_bit
+    def summarise(self, series, metric, summary_size):
+        if not series:
+            return []
+
+        agg_method = metric.rstrip(')').split('.')[-1]
         if metric.startswith("integral("):
             agg_method = 'max'
-        return self.metric_template % (metric, t_summary, agg_method)
+        agg_func = {
+            'min': min,
+            'max': max,
+            'sum': sum,
+        }.get(agg_method, avg)
+
+        summary_size *= 1000
+        summarised_series = []
+
+        last_time = series[0][0] - (series[0][0] % summary_size)
+        summary_block = []
+
+        while series:
+            time, value = series.pop(0)
+            if time >= last_time + summary_size:
+                summarised_series.append((last_time, agg_func(summary_block)))
+                last_time += summary_size
+                summary_block = []
+            summary_block.append(value)
+        summarised_series.append((last_time, agg_func(summary_block)))
+
+        return summarised_series
+
+    def get_series(self, metric, start, end, skip_nulls=True):
+        d = self.make_graphite_request(metric, start, end)
+        point_filter = (filter_datapoints if skip_nulls
+                        else filter_nulls_as_zeroes)
+        return d.addCallback(all_datapoints).addCallback(point_filter)
 
     def get_latest(self, metric, start, end, summary_size, skip_nulls=True):
-        d = self.get_history(metric, start, end, summary_size, skip_nulls)
+        d = self.get_series(metric, start, end, skip_nulls)
         return d.addCallback(filter_latest)
 
     def get_history(self, metric, start, end, summary_size, skip_nulls=True):
-        d = self.make_graphite_request(metric, start, end, summary_size)
-        point_filter = (filter_datapoints if skip_nulls
-                        else filter_nulls_as_zeroes)
-        return d.addCallback(point_filter)
+        d = self.get_series(metric, start, end, skip_nulls)
+        if summary_size is not None:
+            d.addCallback(self.summarise, metric, summary_size)
+        return d
