@@ -69,7 +69,8 @@ class GeckoboardLatestResource(GeckoboardResourceBase):
 
     def aggregate_results(self, results):
         latest, prev = zip(*results)
-        return (sum(latest), sum(prev))
+        return (sum(v for v in latest if v is not None),
+                sum(v for v in prev if v is not None))
 
     @inlineCallbacks
     def get_data(self, request):

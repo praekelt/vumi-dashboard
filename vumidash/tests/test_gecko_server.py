@@ -15,13 +15,15 @@ class DummySource(MetricSource):
 
     def get_latest(self, metric_name, start, end, summary_size):
         values = self.get_history(metric_name, start, end, summary_size)
+        if not values:
+            values = [None, None]
         return values[0], values[-1]
 
     def get_history(self, metric_name, start, end, summary_size,
                     skip_nulls=True):
-        data = self.testdata.get(metric_name)
-        if not data:
+        if metric_name not in self.testdata:
             raise ValueError("Unknown metric")
+        data = self.testdata.get(metric_name)
         steps = int(self.total_seconds(end - start) /
                     float(self.total_seconds(summary_size)))
         values = data[:steps]
@@ -37,6 +39,7 @@ class TestGeckoServer(unittest.TestCase):
         'foo': [1, 2, 3, 4, 5],
         'bar': [6, 7, 8, 9, 10],
         'zeroes': [1, 2, None, 3, 4, None, 5],
+        'empty': [],
         }
 
     @inlineCallbacks
@@ -76,6 +79,12 @@ class TestGeckoServer(unittest.TestCase):
         data = yield self.get_route_json('latest?metric=foo&metric=bar')
         self.assertEqual({'item': [{'text': '', 'value': 15},
                                    {'text': '', 'value': 7}]}, data)
+
+    @inlineCallbacks
+    def test_empty_latest(self):
+        data = yield self.get_route_json('latest?metric=empty')
+        self.assertEqual({'item': [{'text': '', 'value': 0},
+                                   {'text': '', 'value': 0}]}, data)
 
     @inlineCallbacks
     def test_simple_history(self):
@@ -145,11 +154,16 @@ class TestGeckoServer(unittest.TestCase):
         self.check_series(data, {'zeroes': with_nulls_as_zeroes})
 
     @inlineCallbacks
+    def test_empty_data(self):
+        data = yield self.get_route_json('history?metric=empty')
+        self.check_series(data, {'empty': []})
+
+    @inlineCallbacks
     def test_rag_simple(self):
         data = yield self.get_route_json('rag?r_metric=foo&a_metric=bar'
                                          '&g_metric=zeroes')
         for item, (value, text) in zip(data['item'], [
-            (5, "Red"), (10, "Amber"), (5, "Green")]):
+                (5, "Red"), (10, "Amber"), (5, "Green")]):
             self.assertEqual(item, {"value": value, "text": text})
 
     @inlineCallbacks
@@ -158,7 +172,7 @@ class TestGeckoServer(unittest.TestCase):
                                          '&a_metric=bar&a_text=bar2'
                                          '&g_metric=zeroes&g_text=zeroes3')
         for item, (value, text) in zip(data['item'], [
-            (5, "foo1"), (10, "bar2"), (5, "zeroes3")]):
+                (5, "foo1"), (10, "bar2"), (5, "zeroes3")]):
             self.assertEqual(item, {"value": value, "text": text})
 
     @inlineCallbacks
@@ -168,7 +182,7 @@ class TestGeckoServer(unittest.TestCase):
                                          '&g_metric=zeroes'
                                          '&g_prefix=%26pound%3B')
         for item, (value, text, prefix) in zip(data['item'], [
-            (5, "Red", "$"), (10, "Amber", "&euro;"),
-            (5, "Green", "&pound;")]):
+                (5, "Red", "$"), (10, "Amber", "&euro;"),
+                (5, "Green", "&pound;")]):
             self.assertEqual(item, {
                 "value": value, "text": text, "prefix": prefix})
