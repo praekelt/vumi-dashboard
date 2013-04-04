@@ -85,7 +85,7 @@ class GraphiteClient(MetricSource):
     def format_metric(self, metric, t_summary):
         agg_method = "avg"
         last_bit = metric.rstrip(')').split('.')[-1]
-        if last_bit in ('max', 'min', 'sum'):
+        if last_bit in ('max', 'min', 'sum', 'last'):
             agg_method = last_bit
         if metric.startswith("integral("):
             agg_method = 'max'
