@@ -64,6 +64,10 @@ def avg(series):
     return sum(series) / len(series)
 
 
+def last(series):
+    return series[-1]
+
+
 class GraphiteClient(MetricSource):
     """Read metrics from Graphite."""
 
@@ -100,6 +104,7 @@ class GraphiteClient(MetricSource):
             'min': min,
             'max': max,
             'sum': sum,
+            'last': last,
         }.get(agg_method, avg)
 
         summary_size *= 1000
