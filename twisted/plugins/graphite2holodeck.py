@@ -8,20 +8,22 @@ from twisted.application.service import IServiceMaker
 
 from vumidash.graphite_client import GraphiteClient
 from vumidash.dummy_client import DummyClient
-from vumidash.holodeck_pusher import HolodeckPusherService
+
+# NOTE: We avoid importing vumidash.holodeck_pusher at the module level so
+#       that twistd can import this module even when selenium isn't available.
 
 
 class Options(usage.Options):
     optFlags = [
         ["dummy", None, "Use a dummy metrics source instead of reading"
                         " from Graphite."],
-        ]
+    ]
 
     optParameters = [
         ["graphite-url", "g", None, "The URL of the Graphite web service."],
         ["config", "c", None, "The YAML config file describing which metrics"
          " to push."],
-        ]
+    ]
 
 
 class Graphite2HolodeckServiceMaker(object):
@@ -31,6 +33,8 @@ class Graphite2HolodeckServiceMaker(object):
     options = Options
 
     def makeService(self, options):
+        from vumidash.holodeck_pusher import HolodeckPusherService
+
         graphite_url = options["graphite-url"]
         with open(options["config"]) as f:
             config = yaml.safe_load(f.read())
