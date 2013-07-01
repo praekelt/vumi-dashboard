@@ -7,20 +7,22 @@ from twisted.python import usage
 from twisted.plugin import IPlugin
 from twisted.application.service import IServiceMaker
 
-from vumidash.gecko_imager import GeckoImageServer
+# NOTE: We avoid importing vumidash.gecko_imager at the module level so
+#       that twistd can import this module even when selenium isn't available.
 
 
 class Options(usage.Options):
     optFlags = [
         ["config-help", None, "Print out help on the YAML configuration file"
                               " and exit"],
-        ]
+    ]
 
     optParameters = [
         ["config", "c", None, "The YAML configuration file"],
-        ]
+    ]
 
     def opt_config_help(self):
+        from vumidash.gecko_imager import GeckoImageServer
         print GeckoImageServer.__doc__
         print "See above for YAML configuration file parameters."
         sys.exit(0)
@@ -33,6 +35,8 @@ class Gecko2ImageServiceMaker(object):
     options = Options
 
     def makeService(self, options):
+        from vumidash.gecko_imager import GeckoImageServer
+
         config_file = options.pop("config")
         if not config_file:
             raise ValueError("please specify --config")
